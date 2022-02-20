@@ -56,6 +56,14 @@ exports.addPost = functions.firestore
             } else {
               if (userFriendFavoritesIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendTastedPlaceYouFavorited; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                db.collection("notifications").doc(context.eventId).set({
+                  ownerId: userFriendId,
+                  type: "FriendTastedPlaceYouFavorited",
+                  notificationDataUserId: userId,
+                  notificationDataPlaceId: placeId,
+                  seen: false,
+                  timestamp: admin.firestore.Timestamp.now(),
+                });
               } else if (userFriendWantToTasteIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendTastedPlaceYouWantToTaste; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
               }
