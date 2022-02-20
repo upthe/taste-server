@@ -4,40 +4,23 @@ admin.initializeApp();
 
 const db = admin.firestore();
 
-exports.addTaste = functions.firestore.document("/posts/{postId}")
+exports.addNotification = functions.firestore
+    .document("/notifications/{notificationId}")
     .onCreate((snap, context) => {
-      functions.logger.log("Starting to process post", context.params.postId);
+      functions.logger.log(
+          "Starting to process notification",
+          context.params.notificationId
+      );
       const data = snap.data();
-      functions.logger.log("Dumping post data", data);
+      functions.logger.log("Dumping notification data", data);
 
-      const userId = data["user"]["_path"]["segments"][1];
-      const placeId = data["place"]["_path"]["segments"][1];
+      const ownerId = data.ownerId;
 
-      var friendsWhoFavorited = []
-      var friendsWhoTasted = []
-
-      return db.collection("users").doc(userId).get().then((userDoc) => {
+      return db.collection("users").doc(ownerId).get().then((userDoc) => {
         functions.logger.log("userDoc", userDoc);
-        const allFriends = userDoc.data().friends;
-        functions.logger.log("all friends", allFriends);
-        allFriends.forEach()
       });
 
-      // const favorited = data.favorited;
-
-      // if (favorited) {
-      //   for (var friend : friendsWhoFavorited) {
-      //     return
-      //   }
-      //   for (var friend : friendsWhoTasted) {
-      //     return
-      //   }
-      // } else {
-      //   for (var friend : friendsWhoFavorited) {
-      //     return
-      //   }
-      //   for (var friend : friendsWhoTasted) {
-      //     return
-      //   }
-      // }
+      // get user id in context
+      // read from db to get fcm token for user
+      // send notification with appropriate data to user
     });
