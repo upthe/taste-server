@@ -124,7 +124,7 @@ exports.addNotification = functions.firestore
                 break;
               case "FriendFavoritedPlaceYouWantToTaste":
                 title = `${userFirstName} favorited ${placeName}`;
-                body = `You want to taste ${placeName} - see what ${userFirstName} said`;
+                body = `You want to taste ${placeName} - see what ${userFirstName} said before you go`;
                 break;
               case "FriendFavoritedPlace":
                 title = `${userFirstName} favorited ${placeName}`;
