@@ -73,6 +73,8 @@ exports.addPost = functions.firestore
       });
     });
 
+// FUTURE: this function isn't truly idempotent and Cloud Functions doesn't guarantee single execution - just
+// that there is an execution. In edge cases, users may get multiple notifications for the same event
 exports.addNotification = functions.firestore
     .document("/notifications/{notificationId}")
     .onCreate((snap, context) => {
@@ -121,11 +123,11 @@ exports.addNotification = functions.firestore
                 body = `See what ${userFirstName} said`;
                 break;
               case "FriendTastedPlaceYouFavorited":
-                title = `${userFirstName} favorited ${placeName}`;
+                title = `${userFirstName} tasted ${placeName}`;
                 body = `You favorited ${placeName} - see what ${userFirstName} said`;
                 break;
               case "FriendTastedPlaceYouWantToTaste":
-                title = `${userFirstName} favorited ${placeName}`;
+                title = `${userFirstName} tasted ${placeName}`;
                 body = `You want to taste ${placeName} - see what ${userFirstName} said before you go`;
                 break;
               default:
