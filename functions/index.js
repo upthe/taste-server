@@ -38,19 +38,19 @@ exports.addNotification = functions.firestore
             switch (type) {
               case "FriendFavoritedPlaceYouFavorited":
                 title = `${userFirstName} favorited ${placeName}`; // eslint-disable-line max-len
-                body = `You also favorited ${placeName} - see what ${userFirstName} said.`; // eslint-disable-line max-len
+                body = `You also favorited ${placeName} - see what ${userFirstName} said`; // eslint-disable-line max-len
                 break;
               case "FriendFavoritedPlace":
                 title = `${userFirstName} favorited ${placeName}`; // eslint-disable-line max-len
-                body = `See what ${userFirstName} said.`; // eslint-disable-line max-len
+                body = `See what ${userFirstName} said`; // eslint-disable-line max-len
                 break;
               case "FriendTastedPlaceYouFavorited":
                 title = `${userFirstName} favorited ${placeName}`; // eslint-disable-line max-len
-                body = `You favorited ${placeName} - see what ${userFirstName} said.`; // eslint-disable-line max-len
+                body = `You favorited ${placeName} - see what ${userFirstName} said`; // eslint-disable-line max-len
                 break;
               case "FriendTastedPlaceYouWantToTaste":
                 title = `${userFirstName} favorited ${placeName}`; // eslint-disable-line max-len
-                body = `You want to taste ${placeName} - see what ${userFirstName} said before you go.`; // eslint-disable-line max-len
+                body = `You want to taste ${placeName} - see what ${userFirstName} said before you go`; // eslint-disable-line max-len
                 break;
               default:
                 return;
@@ -63,6 +63,7 @@ exports.addNotification = functions.firestore
               },
             };
 
+            functions.logger.log("Dumping payload and sending", payload);
             admin.messaging().sendToDevice(fcmToken, payload);
           });
         });
