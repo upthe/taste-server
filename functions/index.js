@@ -43,29 +43,41 @@ exports.addPost = functions.firestore
             functions.logger.log("Dumping userFriendId, userFriendTastedIds", userFriendId, userFriendTastedIds);
             functions.logger.log("Dumping userFriendId, userFriendWantToTasteIds", userFriendId, userFriendWantToTasteIds);
 
+            const payload = {
+              ownerId: userFriendId,
+              notificationDataUserId: userId,
+              notificationDataPlaceId: placeId,
+              seen: false,
+              timestamp: admin.firestore.Timestamp.now(),
+            };
+
             if (favorited) {
               if (userFriendFavoritesIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendFavoritedPlaceYouFavorited; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                payload["type"] = "FriendFavoritedPlaceYouFavorited";
+                db.collection("notifications").doc(context.eventId).set(payload);
               } else if (userFriendTastedIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendFavoritedPlaceYouTasted; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                payload["type"] = "FriendFavoritedPlaceYouTasted";
+                db.collection("notifications").doc(context.eventId).set(payload);
               } else if (userFriendWantToTasteIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendFavoritedPlaceYouWantToTaste; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                payload["type"] = "FriendFavoritedPlaceYouWantToTaste";
+                db.collection("notifications").doc(context.eventId).set(payload);
               } else {
                 functions.logger.log("Triggered case FriendFavoritedPlace; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                payload["type"] = "FriendFavoritedPlace";
+                db.collection("notifications").doc(context.eventId).set(payload);
               }
             } else {
               if (userFriendFavoritesIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendTastedPlaceYouFavorited; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
-                db.collection("notifications").doc(context.eventId).set({
-                  ownerId: userFriendId,
-                  type: "FriendTastedPlaceYouFavorited",
-                  notificationDataUserId: userId,
-                  notificationDataPlaceId: placeId,
-                  seen: false,
-                  timestamp: admin.firestore.Timestamp.now(),
-                });
+                payload["type"] = "FriendTastedPlaceYouFavorited";
+                db.collection("notifications").doc(context.eventId).set(payload);
               } else if (userFriendWantToTasteIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendTastedPlaceYouWantToTaste; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                payload["type"] = "FriendTastedPlaceYouWantToTaste";
+                db.collection("notifications").doc(context.eventId).set(payload);
               }
             }
           });
