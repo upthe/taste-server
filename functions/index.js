@@ -39,10 +39,6 @@ exports.addPost = functions.firestore
               userFriendWantToTasteIds.push(place.id);
             });
 
-            functions.logger.log("Dumping userFriendId, userFriendFavoritesIds", userFriendId, userFriendFavoritesIds);
-            functions.logger.log("Dumping userFriendId, userFriendTastedIds", userFriendId, userFriendTastedIds);
-            functions.logger.log("Dumping userFriendId, userFriendWantToTasteIds", userFriendId, userFriendWantToTasteIds);
-
             const payload = {
               ownerId: userFriendId,
               notificationDataUserId: userId,
@@ -153,7 +149,7 @@ exports.addNotification = functions.firestore
               },
             };
 
-            functions.logger.log("Dumping payload and sending", payload);
+            functions.logger.log("Dumping FCM token and payload, then sending", fcmToken, payload);
             admin.messaging().sendToDevice(fcmToken, payload);
           });
         });
