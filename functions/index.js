@@ -23,6 +23,7 @@ exports.addPost = functions.firestore
 
         userFriends.forEach((userFriend) => {
           const userFriendId = userFriend.id;
+          const documentId = btoa(context.eventId.concat(userFriendId));
           db.collection("users").doc(userFriendId).get().then((qds) => {
             const userFriendData = qds.data();
 
@@ -49,31 +50,31 @@ exports.addPost = functions.firestore
 
             if (favorited) {
               if (userFriendFavoritesIds.includes(placeId)) {
-                functions.logger.log("Triggered case FriendFavoritedPlaceYouFavorited; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                functions.logger.log("Triggered case FriendFavoritedPlaceYouFavorited, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendFavoritedPlaceYouFavorited";
-                db.collection("notifications").doc(context.eventId).set(payload);
+                db.collection("notifications").doc(documentId).set(payload);
               } else if (userFriendTastedIds.includes(placeId)) {
-                functions.logger.log("Triggered case FriendFavoritedPlaceYouTasted; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                functions.logger.log("Triggered case FriendFavoritedPlaceYouTasted, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendFavoritedPlaceYouTasted";
-                db.collection("notifications").doc(context.eventId).set(payload);
+                db.collection("notifications").doc(documentId).set(payload);
               } else if (userFriendWantToTasteIds.includes(placeId)) {
-                functions.logger.log("Triggered case FriendFavoritedPlaceYouWantToTaste; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                functions.logger.log("Triggered case FriendFavoritedPlaceYouWantToTaste, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendFavoritedPlaceYouWantToTaste";
-                db.collection("notifications").doc(context.eventId).set(payload);
+                db.collection("notifications").doc(documentId).set(payload);
               } else {
-                functions.logger.log("Triggered case FriendFavoritedPlace; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                functions.logger.log("Triggered case FriendFavoritedPlace, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendFavoritedPlace";
-                db.collection("notifications").doc(context.eventId).set(payload);
+                db.collection("notifications").doc(documentId).set(payload);
               }
             } else {
               if (userFriendFavoritesIds.includes(placeId)) {
-                functions.logger.log("Triggered case FriendTastedPlaceYouFavorited; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                functions.logger.log("Triggered case FriendTastedPlaceYouFavorited, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendTastedPlaceYouFavorited";
-                db.collection("notifications").doc(context.eventId).set(payload);
+                db.collection("notifications").doc(documentId).set(payload);
               } else if (userFriendWantToTasteIds.includes(placeId)) {
-                functions.logger.log("Triggered case FriendTastedPlaceYouWantToTaste; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
+                functions.logger.log("Triggered case FriendTastedPlaceYouWantToTaste, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendTastedPlaceYouWantToTaste";
-                db.collection("notifications").doc(context.eventId).set(payload);
+                db.collection("notifications").doc(documentId).set(payload);
               }
             }
           });
@@ -86,10 +87,7 @@ exports.addPost = functions.firestore
 exports.addNotification = functions.firestore
     .document("/notifications/{notificationId}")
     .onCreate((snap, context) => {
-      functions.logger.log(
-          "Starting to process notification",
-          context.params.notificationId
-      );
+      functions.logger.log("Starting to process notification", context.params.notificationId);
       const data = snap.data();
       functions.logger.log("Dumping notification data", data);
 
@@ -101,6 +99,11 @@ exports.addNotification = functions.firestore
       return db.collection("users").doc(ownerId).get().then((qds) => {
         const userData = qds.data();
         const fcmToken = userData.fcmToken;
+
+        if (!fcmToken) {
+          functions.logger.log("FCM token is empty, dumping userData and exiting", userData);
+          return;
+        }
 
         db.collection("users").doc(notifDataUserId).get().then((qds) => {
           const notificationUserData = qds.data();
