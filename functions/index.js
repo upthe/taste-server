@@ -15,12 +15,56 @@ exports.addNotification = functions.firestore
       functions.logger.log("Dumping notification data", data);
 
       const ownerId = data.ownerId;
+      const notifDataUserId = data.notificationDataUserId;
+      const notifDataPlaceId = data.notificationDataPlaceId;
+      const type = data.type;
 
-      return db.collection("users").doc(ownerId).get().then((userDoc) => {
-        functions.logger.log("userDoc", userDoc);
+      return db.collection("users").doc(ownerId).get().then((qds) => {
+        const userData = qds.data();
+        functions.logger.log("userData", userData);
+        const fcmToken = userData.fcmToken;
+
+        db.collection("users").doc(notifDataUserId).get().then((qds) => {
+          const notificationUserData = qds.data();
+          const userFirstName = notificationUserData.firstName;
+
+          db.collection("places").doc(notifDataPlaceId).get().then((qds) => {
+            const notificationPlaceData = qds.data();
+            const placeName = notificationPlaceData.name;
+
+            let title = "";
+            let body = "";
+
+            switch (type) {
+              case "FriendFavoritedPlaceYouFavorited":
+                title = `${userFirstName} favorited ${placeName}`; // eslint-disable-line max-len
+                body = `You also favorited ${placeName} - see what ${userFirstName} said.`; // eslint-disable-line max-len
+                break;
+              case "FriendFavoritedPlace":
+                title = `${userFirstName} favorited ${placeName}`; // eslint-disable-line max-len
+                body = `See what ${userFirstName} said.`; // eslint-disable-line max-len
+                break;
+              case "FriendTastedPlaceYouFavorited":
+                title = `${userFirstName} favorited ${placeName}`; // eslint-disable-line max-len
+                body = `You favorited ${placeName} - see what ${userFirstName} said.`; // eslint-disable-line max-len
+                break;
+              case "FriendTastedPlaceYouWantToTaste":
+                title = `${userFirstName} favorited ${placeName}`; // eslint-disable-line max-len
+                body = `You want to taste ${placeName} - see what ${userFirstName} said before you go.`; // eslint-disable-line max-len
+                break;
+              default:
+                return;
+            }
+
+            const payload = admin.messaging.MessagingPayload = {
+              notification: {
+                title: title,
+                body: body,
+              },
+            };
+
+            admin.messaging().sendToDevice(fcmToken, payload);
+          });
+        });
       });
-
-      // get user id in context
-      // read from db to get fcm token for user
-      // send notification with appropriate data to user
     });
