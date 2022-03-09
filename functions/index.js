@@ -176,7 +176,7 @@ exports.clearStreaks = functions
             const latestPostTimestamp = latestPost.data()["timestamp"];
             const diffDays = (now - latestPostTimestamp) / 60 / 60 / 24;
             functions.logger.log("Dumping latest post, user, diffDays", latestPost.id, user.id, diffDays);
-            if (diffDays > 14) {
+            if (diffDays > 7) {
               functions.logger.log("Clearing streak for user", user.id);
               user.ref.set({
                 streakCount: 0,
