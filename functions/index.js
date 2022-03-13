@@ -251,7 +251,7 @@ exports.awardBadges = functions
       };
 
       return db.collection("users").get().then(async (snapshot) => {
-        await snapshot.docs.forEach(async (user) => {
+        snapshot.docs.forEach((user) => {
           functions.logger.log("Processing user", user.id);
           const userData = user.data();
           const userBadgeFriendlyIdentifiers = userData.badgeFriendlyIdentifiers ? userData.badgeFriendlyIdentifiers : [];
@@ -275,8 +275,8 @@ exports.awardBadges = functions
           });
 
           Promise.all(placeRefRequests).then(() => {
-            Object.keys(cuisineToBadgeFriendlyIdentifier).forEach((cuisine) => {
-              if (cuisine in userCusinesToCount && userCusinesToCount[cuisine] > 10) {
+            Object.keys(cuisineToBadgeFriendlyIdentifier).forEach(async (cuisine) => {
+              if (cuisine in userCusinesToCount && userCusinesToCount[cuisine] > 9) {
                 const badgeFriendlyIdentifier = cuisineToBadgeFriendlyIdentifier[cuisine];
                 if (!userBadgeFriendlyIdentifiers.includes(badgeFriendlyIdentifier)) {
                   functions.logger.log("Awarding badge to user and creating notification, dumping badgeFriendlyIdentifier, userData.handle:", badgeFriendlyIdentifier, userData.handle);
@@ -284,7 +284,7 @@ exports.awardBadges = functions
                     badgeFriendlyIdentifiers: admin.firestore.FieldValue.arrayUnion(badgeFriendlyIdentifier),
                   });
                   const notificationDocumentId = Buffer.from(context.eventId.concat(badgeFriendlyIdentifier)).toString("base64");
-                  return db.collection("notifications").doc(notificationDocumentId).set({
+                  await db.collection("notifications").doc(notificationDocumentId).set({
                     ownerId: user.id,
                     notificationDataBadgeFriendlyIdentifier: badgeFriendlyIdentifier,
                     type: "BadgeAwarded",
