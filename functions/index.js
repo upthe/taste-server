@@ -24,7 +24,6 @@ exports.createNotificationsForPost = functions.firestore
 
         userFriends.forEach((userFriend) => {
           const userFriendId = userFriend.id;
-          const documentId = btoa(context.eventId.concat(userFriendId));
           db.collection("users").doc(userFriendId).get().then((qds) => {
             const userFriendData = qds.data();
 
@@ -53,29 +52,29 @@ exports.createNotificationsForPost = functions.firestore
               if (userFriendFavoritesIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendFavoritedPlaceYouFavorited, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendFavoritedPlaceYouFavorited";
-                db.collection("notifications").doc(documentId).set(payload);
+                db.collection("notifications").add(payload);
               } else if (userFriendTastedIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendFavoritedPlaceYouTasted, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendFavoritedPlaceYouTasted";
-                db.collection("notifications").doc(documentId).set(payload);
+                db.collection("notifications").add(payload);
               } else if (userFriendWantToTasteIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendFavoritedPlaceYouWantToTaste, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendFavoritedPlaceYouWantToTaste";
-                db.collection("notifications").doc(documentId).set(payload);
+                db.collection("notifications").add(payload);
               } else {
                 functions.logger.log("Triggered case FriendFavoritedPlace, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendFavoritedPlace";
-                db.collection("notifications").doc(documentId).set(payload);
+                db.collection("notifications").add(payload);
               }
             } else {
               if (userFriendFavoritesIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendTastedPlaceYouFavorited, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendTastedPlaceYouFavorited";
-                db.collection("notifications").doc(documentId).set(payload);
+                db.collection("notifications").add(payload);
               } else if (userFriendWantToTasteIds.includes(placeId)) {
                 functions.logger.log("Triggered case FriendTastedPlaceYouWantToTaste, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
                 payload["type"] = "FriendTastedPlaceYouWantToTaste";
-                db.collection("notifications").doc(documentId).set(payload);
+                db.collection("notifications").add(payload);
               }
             }
           });
@@ -104,15 +103,15 @@ exports.handleNotification = functions.firestore
           return;
         }
 
-        if (type == "BadgeAwarded") {
+        if (type == "BadgeAwardedToYou") {
           // Data fields: notificationDataBadgeFriendlyIdentifier
           const notifDataBadgeFriendlyIdentifier = notifData.notificationDataBadgeFriendlyIdentifier;
-          return db.collection("badges").where("friendlyIdentifier", "==", notifDataBadgeFriendlyIdentifier).get().then((snapshot) => {
+          db.collection("badges").where("friendlyIdentifier", "==", notifDataBadgeFriendlyIdentifier).get().then((snapshot) => {
             const badge = snapshot.docs[0];
             const badgeData = badge.data();
 
-            const title = `You've been awarded the ${badgeData.name} badge`;
-            const body = "You can find this badge in your profile now";
+            const title = `You were awarded the ${badgeData.name} badge`;
+            const body = "Go to your profile to see your badge";
 
             const payload = admin.messaging.MessagingPayload = {
               notification: {
@@ -120,8 +119,34 @@ exports.handleNotification = functions.firestore
                 body: body,
               },
             };
-            functions.logger.log("Dumping userData.handle, fcmToken, payload, then sending message notification", userData.handle, fcmToken, payload);
+            functions.logger.log("Dumping userData.handle, fcmToken, payload, type, then sending message notification", userData.handle, fcmToken, payload, type);
             admin.messaging().sendToDevice(fcmToken, payload);
+          });
+        } else if (type == "BadgeAwardedToFriend") {
+          // Data fields: notificationDataUserId, notificationDataBadgeFriendlyIdentifier
+          const notifDataUserId = notifData.notificationDataUserId;
+          const notifDataBadgeFriendlyIdentifier = notifData.notificationDataBadgeFriendlyIdentifier;
+
+          db.collection("users").doc(notifDataUserId).get().then((qds) => {
+            const notificationUserData = qds.data();
+            const userFirstName = notificationUserData.firstName;
+
+            db.collection("badges").where("friendlyIdentifier", "==", notifDataBadgeFriendlyIdentifier).get().then((snapshot) => {
+              const badge = snapshot.docs[0];
+              const badgeData = badge.data();
+
+              const title = `${userFirstName} was awarded the ${badgeData.name} badge`;
+              const body = "Go to their profile to see their badge";
+
+              const payload = admin.messaging.MessagingPayload = {
+                notification: {
+                  title: title,
+                  body: body,
+                },
+              };
+              functions.logger.log("Dumping userData.handle, fcmToken, payload, type, then sending message notification", userData.handle, fcmToken, payload, type);
+              admin.messaging().sendToDevice(fcmToken, payload);
+            });
           });
         } else {
           // Data fields: notificationDataUserId, notificationDataPlaceId
@@ -175,7 +200,7 @@ exports.handleNotification = functions.firestore
                   body: body,
                 },
               };
-              functions.logger.log("Dumping userData.handle, fcmToken, payload, then sending message notification", userData.handle, fcmToken, payload);
+              functions.logger.log("Dumping userData.handle, fcmToken, payload, type, then sending message notification", userData.handle, fcmToken, payload, type);
               admin.messaging().sendToDevice(fcmToken, payload);
             });
           });
@@ -256,6 +281,7 @@ exports.awardBadges = functions
           const userData = user.data();
           const userBadgeFriendlyIdentifiers = userData.badgeFriendlyIdentifiers ? userData.badgeFriendlyIdentifiers : [];
           const userTastedPlaceRefs = userData.tasted ? userData.tasted : [];
+          const userFriends = userData.friends ? userData.friends : [];
           const userCusinesToCount = {};
 
           const placeRefRequests = [];
@@ -276,20 +302,32 @@ exports.awardBadges = functions
 
           Promise.all(placeRefRequests).then(() => {
             Object.keys(cuisineToBadgeFriendlyIdentifier).forEach(async (cuisine) => {
-              if (cuisine in userCusinesToCount && userCusinesToCount[cuisine] > 9) {
+              if (cuisine in userCusinesToCount && userCusinesToCount[cuisine] >= 10) {
                 const badgeFriendlyIdentifier = cuisineToBadgeFriendlyIdentifier[cuisine];
                 if (!userBadgeFriendlyIdentifiers.includes(badgeFriendlyIdentifier)) {
-                  functions.logger.log("Awarding badge to user and creating notification, dumping badgeFriendlyIdentifier, userData.handle:", badgeFriendlyIdentifier, userData.handle);
-                  user.ref.update({
+                  functions.logger.log("Awarding badge to user and creating notifications, dumping badgeFriendlyIdentifier, userData.handle:", badgeFriendlyIdentifier, userData.handle);
+                  await user.ref.update({
                     badgeFriendlyIdentifiers: admin.firestore.FieldValue.arrayUnion(badgeFriendlyIdentifier),
                   });
-                  const notificationDocumentId = Buffer.from(context.eventId.concat(badgeFriendlyIdentifier)).toString("base64");
-                  await db.collection("notifications").doc(notificationDocumentId).set({
+
+                  db.collection("notifications").add({
                     ownerId: user.id,
                     notificationDataBadgeFriendlyIdentifier: badgeFriendlyIdentifier,
-                    type: "BadgeAwarded",
+                    type: "BadgeAwardedToYou",
                     seen: false,
                     timestamp: admin.firestore.Timestamp.now(),
+                  });
+
+                  userFriends.forEach((userFriend) => {
+                    const userFriendId = userFriend.id;
+                    db.collection("notifications").add({
+                      ownerId: userFriendId,
+                      notificationDataUserId: user.id,
+                      notificationDataBadgeFriendlyIdentifier: badgeFriendlyIdentifier,
+                      type: "BadgeAwardedToFriend",
+                      seen: false,
+                      timestamp: admin.firestore.Timestamp.now(),
+                    });
                   });
                 }
               }
