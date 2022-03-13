@@ -139,6 +139,7 @@ exports.handleNotification = functions.firestore
               let title = "";
               let body = "";
 
+              // FUTURE: this needs to change given no favorites
               switch (type) {
                 case "FriendFavoritedPlaceYouFavorited":
                   title = `${userFirstName} favorited ${placeName}`;
