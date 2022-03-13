@@ -226,9 +226,9 @@ exports.awardBadges = functions
         "Bagel": "Tasted10BagelPlaces",
         "Bakery": "Tasted10BakeryPlaces",
         "Bar": "Tasted10BarPlaces",
-        "Breakfast & Brunch": "Tasted10BreakfastBrunchPlaces", // FUTURE: rename?
+        "Breakfast/Brunch": "Tasted10BreakfastBrunchPlaces",
         "Burger": "Tasted10BurgerPlaces",
-        "Burrito & Taco": "Tasted10BurritoTacoPlaces",
+        "Burrito/Taco": "Tasted10BurritoTacoPlaces",
         "Cafe": "Tasted10CafePlaces",
         "Chicken": "Tasted10ChickenPlaces",
         "Chinese": "Tasted10ChinesePlaces",
