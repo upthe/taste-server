@@ -305,7 +305,7 @@ exports.awardBadges = functions
               if (cuisine in userCusinesToCount && userCusinesToCount[cuisine] >= 10) {
                 const badgeFriendlyIdentifier = cuisineToBadgeFriendlyIdentifier[cuisine];
                 if (!userBadgeFriendlyIdentifiers.includes(badgeFriendlyIdentifier)) {
-                  functions.logger.log("Awarding badge to user and creating notifications, dumping badgeFriendlyIdentifier, userData.handle:", badgeFriendlyIdentifier, userData.handle);
+                  functions.logger.log("Awarding badge to user and creating notifications, dumping badgeFriendlyIdentifier, userData.handle", badgeFriendlyIdentifier, userData.handle);
                   await user.ref.update({
                     badgeFriendlyIdentifiers: admin.firestore.FieldValue.arrayUnion(badgeFriendlyIdentifier),
                   });
@@ -333,6 +333,28 @@ exports.awardBadges = functions
               }
             });
           });
+        });
+      });
+    });
+
+// Triggered every day to set 'cuisines' field to be an empty list as needed
+// so we can filter places for manual entry
+exports.setEmptyCuisines = functions
+    .pubsub.schedule("0 */6 * * *") // Every 6 hours
+    .timeZone("America/New_York")
+    .onRun((context) => {
+      functions.logger.log("Starting to process setting empty cuisines");
+      return db.collection("places").get().then((snapshot) => {
+        snapshot.docs.forEach((place) => {
+          functions.logger.log("Processing place", place.id);
+          const placeData = place.data();
+
+          if (!Object.keys(placeData).includes("cuisines")) {
+            functions.logger.log("Found place with no cuisines field, setting to list with element empty string, dumping place.id, placeData.name", place.id, placeData.name);
+            place.ref.update({
+              "cuisines": [""],
+            });
+          }
         });
       });
     });
