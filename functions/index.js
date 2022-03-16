@@ -86,14 +86,14 @@ exports.createNotificationsForPost = functions.firestore
           if (starRating == userFriendPostData.starRating) {
             payload["type"] = "FriendTastedPlaceYouTastedAgree";
             payload["title"] = `${userData.firstName} agrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`
-            payload["body"] = (review != "") ? review : "";
+            payload["body"] = (review.trim() != "") ? review.trim() : "";
             payload["notificationLink"] = placeId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
           } else {
             payload["type"] = "FriendTastedPlaceYouTastedDisagree";
             payload["title"] = `${userData.firstName} disagrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`
-            payload["body"] = (review != "") ? review : "";
+            payload["body"] = (review.trim() != "") ? review.trim() : "";
             payload["notificationLink"] = placeId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
@@ -101,21 +101,21 @@ exports.createNotificationsForPost = functions.firestore
         } else if (userFriendWantToTasteIds.includes(placeId)) {
           payload["type"] = "FriendTastedPlaceYouWantToTaste";
           payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you want to taste`
-          payload["body"] = (review != "") ? review : "";
+          payload["body"] = (review.trim() != "") ? review.trim() : "";
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
           db.collection("notifications").add(payload);
         } else if (placeCity == userFriendData.location && starRating >= 4) {
           payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
           payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you haven't tasted yet`
-          payload["body"] = (review != "") ? review : "";
+          payload["body"] = (review.trim() != "") ? review.trim() : "";
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
           db.collection("notifications").add(payload);
         } else if (starRating == 5) {
           payload["type"] = "FriendTastedFiveStar";
           payload["title"] = `${userData.firstName} said ${placeData.name} is excellent`
-          payload["body"] = (review != "") ? review : "";
+          payload["body"] = (review.trim() != "") ? review.trim() : "";
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
           db.collection("notifications").add(payload);
@@ -136,6 +136,7 @@ exports.handleNotification = functions.firestore
       const ownerId = notifData.ownerId;
       const type = notifData.type;
 
+      // TODO: change this to await
       return db.collection("users").doc(ownerId).get().then((qds) => {
         const userData = qds.data();
         const fcmToken = userData.fcmToken;
@@ -351,6 +352,17 @@ exports.awardBadges = functions
                     badgeFriendlyIdentifiers: admin.firestore.FieldValue.arrayUnion(badgeFriendlyIdentifier),
                   });
 
+                  // TODO: send right payload to notifs, e.g.
+                  // const payload = {
+                  //   ownerId: userFriend.id,
+                  //   type: asdf,
+                  //   title: asdf,
+                  //   body: asdf,
+                  //   notificationLink: asdf,
+                  //   seen: false,
+                  //   timestamp: admin.firestore.Timestamp.now(),
+                  // };
+
                   db.collection("notifications").add({
                     ownerId: user.id,
                     notificationDataBadgeFriendlyIdentifier: badgeFriendlyIdentifier,
@@ -397,5 +409,20 @@ exports.setEmptyCuisines = functions
             });
           }
         });
+      });
+    });
+
+exports.createPost = functions
+    .pubsub.schedule("0 */6 * * *") // Every 6 hours
+    .onRun(async (context) => {
+      const docId = "000000";
+      await db.collection("posts").doc(docId).delete()
+      return db.collection("posts").doc(docId).set({
+        starRating: 5,
+        review: "some review",
+        dishes: "dishes",
+        place: db.collection("places").doc("04454239dcb3e1bfd3670e834869b9f413a7379b49ebd926f317ca5d24b2ffef"),
+        user: db.collection("users").doc("ZL9uRDZXog21sG87hWMw"),
+        timestamp: admin.firestore.Timestamp.now(),
       });
     });
