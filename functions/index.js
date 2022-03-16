@@ -9,76 +9,117 @@ const db = admin.firestore();
 // Triggered when a post is created so we can create notification documents
 exports.createNotificationsForPost = functions.firestore
     .document("/posts/{postId}")
-    .onCreate((snap, context) => {
+    .onCreate(async (snap, context) => {
       functions.logger.log("Starting to process post to create notifications", context.params.postId);
       const data = snap.data();
       functions.logger.log("Dumping post data", data);
 
-      const userId = data["user"]["_path"]["segments"][1];
-      const placeId = data["place"]["_path"]["segments"][1];
-      const favorited = data.favorited;
+      const starRatingDescriptors = [
+        "terrible",
+        "bad",
+        "okay",
+        "good",
+        "excellent",
+      ];
 
-      return db.collection("users").doc(userId).get().then((qds) => {
-        const userData = qds.data();
-        const userFriends = userData.friends;
-
-        userFriends.forEach((userFriend) => {
-          const userFriendId = userFriend.id;
-          db.collection("users").doc(userFriendId).get().then((qds) => {
-            const userFriendData = qds.data();
-
-            const userFriendFavoritesIds = [];
-            const userFriendTastedIds = [];
-            const userFriendWantToTasteIds = [];
-            userFriendData.favorites.forEach((place) => {
-              userFriendFavoritesIds.push(place.id);
-            });
-            userFriendData.tasted.forEach((place) => {
-              userFriendTastedIds.push(place.id);
-            });
-            userFriendData.wantToTaste.forEach((place) => {
-              userFriendWantToTasteIds.push(place.id);
-            });
-
-            const payload = {
-              ownerId: userFriendId,
-              notificationDataUserId: userId,
-              notificationDataPlaceId: placeId,
-              seen: false,
-              timestamp: admin.firestore.Timestamp.now(),
-            };
-
-            if (favorited) {
-              if (userFriendFavoritesIds.includes(placeId)) {
-                functions.logger.log("Triggered case FriendFavoritedPlaceYouFavorited, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
-                payload["type"] = "FriendFavoritedPlaceYouFavorited";
-                db.collection("notifications").add(payload);
-              } else if (userFriendTastedIds.includes(placeId)) {
-                functions.logger.log("Triggered case FriendFavoritedPlaceYouTasted, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
-                payload["type"] = "FriendFavoritedPlaceYouTasted";
-                db.collection("notifications").add(payload);
-              } else if (userFriendWantToTasteIds.includes(placeId)) {
-                functions.logger.log("Triggered case FriendFavoritedPlaceYouWantToTaste, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
-                payload["type"] = "FriendFavoritedPlaceYouWantToTaste";
-                db.collection("notifications").add(payload);
-              } else {
-                functions.logger.log("Triggered case FriendFavoritedPlace, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
-                payload["type"] = "FriendFavoritedPlace";
-                db.collection("notifications").add(payload);
-              }
-            } else {
-              if (userFriendFavoritesIds.includes(placeId)) {
-                functions.logger.log("Triggered case FriendTastedPlaceYouFavorited, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
-                payload["type"] = "FriendTastedPlaceYouFavorited";
-                db.collection("notifications").add(payload);
-              } else if (userFriendWantToTasteIds.includes(placeId)) {
-                functions.logger.log("Triggered case FriendTastedPlaceYouWantToTaste, creating document; dumping userId, userFriendId, placeId", userId, userFriendId, placeId);
-                payload["type"] = "FriendTastedPlaceYouWantToTaste";
-                db.collection("notifications").add(payload);
-              }
-            }
+      const zipCodesToCities = {};
+      await db.collection("neighborhoods").get().then((snapshot) => {
+        snapshot.docs.forEach((neighborhood) => {
+          functions.logger.log("Processing neighborhood", neighborhood.id);
+          const neighborhoodData = neighborhood.data();
+          const city = neighborhoodData.city;
+          neighborhoodData.zipCode.forEach((zipCode) => {
+            zipCodesToCities[zipCode] = city
           });
         });
+      });
+
+      const userId = data["user"]["_path"]["segments"][1];
+      const placeId = data["place"]["_path"]["segments"][1];
+      const starRating = data.starRating;
+      const review = data.review;
+
+      const placeRef = db.collection("places").doc(placeId);
+      const placeQds = await placeRef.get();
+      const placeData = placeQds.data();
+
+      var placeCity = "";
+      const placeAddress = placeData.address;
+      const placeAddressSplit = placeAddress.split(",");
+      if (placeAddressSplit.length > 3) {
+        const token = placeAddressSplit[placeAddressSplit.length - 2];
+        const placeZipCode = token.substring(token.length - 5).trim();
+        if (Object.keys(zipCodesToCities).includes(placeZipCode)) {
+          placeCity = zipCodesToCities[placeZipCode];
+        }
+      }
+
+      const userRef = db.collection("users").doc(userId);
+      const userQds = await userRef.get();
+      const userData = userQds.data();
+
+      const userFriends = userData.friends;
+      userFriends.forEach(async (userFriend) => {
+        const userFriendRef = db.collection("users").doc(userFriend.id)
+        const userFriendQds = await userFriendRef.get();
+        const userFriendData = userFriendQds.data();
+
+        const userFriendTastedIds = [];
+        const userFriendWantToTasteIds = [];
+        userFriendData.tasted.forEach((place) => {
+          userFriendTastedIds.push(place.id);
+        });
+        userFriendData.wantToTaste.forEach((place) => {
+          userFriendWantToTasteIds.push(place.id);
+        });
+
+        const payload = {
+          ownerId: userFriend.id,
+          seen: false,
+          timestamp: admin.firestore.Timestamp.now(),
+        };
+
+        if (userFriendTastedIds.includes(placeId)) {
+          const userFriendPostRef = db.collection("posts").where("user", "==", userFriendRef).where("place", "==", placeRef).orderBy("timestamp", "desc").limit(1);
+          const userFriendPostQds = await userFriendPostRef.get()
+          const userFriendPostData = userFriendPostQds.docs[0].data();
+          if (starRating == userFriendPostData.starRating) {
+            payload["type"] = "FriendTastedPlaceYouTastedAgree";
+            payload["title"] = `${userData.firstName} agrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`
+            payload["body"] = (review != "") ? review : "";
+            payload["notificationLink"] = placeId;
+            functions.logger.log("Creating notification with payload", payload);
+            db.collection("notifications").add(payload);
+          } else {
+            payload["type"] = "FriendTastedPlaceYouTastedDisagree";
+            payload["title"] = `${userData.firstName} disagrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`
+            payload["body"] = (review != "") ? review : "";
+            payload["notificationLink"] = placeId;
+            functions.logger.log("Creating notification with payload", payload);
+            db.collection("notifications").add(payload);
+          }
+        } else if (userFriendWantToTasteIds.includes(placeId)) {
+          payload["type"] = "FriendTastedPlaceYouWantToTaste";
+          payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you want to taste`
+          payload["body"] = (review != "") ? review : "";
+          payload["notificationLink"] = placeId;
+          functions.logger.log("Creating notification with payload", payload);
+          db.collection("notifications").add(payload);
+        } else if (placeCity == userFriendData.location && starRating >= 4) {
+          payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
+          payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you haven't tasted yet`
+          payload["body"] = (review != "") ? review : "";
+          payload["notificationLink"] = placeId;
+          functions.logger.log("Creating notification with payload", payload);
+          db.collection("notifications").add(payload);
+        } else if (starRating == 5) {
+          payload["type"] = "FriendTastedFiveStar";
+          payload["title"] = `${userData.firstName} said ${placeData.name} is excellent`
+          payload["body"] = (review != "") ? review : "";
+          payload["notificationLink"] = placeId;
+          functions.logger.log("Creating notification with payload", payload);
+          db.collection("notifications").add(payload);
+        }
       });
     });
 
