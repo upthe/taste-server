@@ -86,6 +86,7 @@ exports.createNotificationsForPost = functions.firestore
             payload["type"] = "FriendTastedPlaceYouTastedAgree";
             payload["title"] = `${userData.firstName} agrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`;
             payload["body"] = (review.trim() != "") ? review.trim() : "";
+            payload["notificationIcon"] = userId;
             payload["notificationLink"] = placeId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
@@ -93,6 +94,7 @@ exports.createNotificationsForPost = functions.firestore
             payload["type"] = "FriendTastedPlaceYouTastedDisagree";
             payload["title"] = `${userData.firstName} disagrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`;
             payload["body"] = (review.trim() != "") ? review.trim() : "";
+            payload["notificationIcon"] = userId;
             payload["notificationLink"] = placeId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
@@ -101,6 +103,7 @@ exports.createNotificationsForPost = functions.firestore
           payload["type"] = "FriendTastedPlaceYouWantToTaste";
           payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you want to taste`;
           payload["body"] = (review.trim() != "") ? review.trim() : "";
+          payload["notificationIcon"] = userId;
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
           db.collection("notifications").add(payload);
@@ -108,6 +111,7 @@ exports.createNotificationsForPost = functions.firestore
           payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
           payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you haven't tasted yet`;
           payload["body"] = (review.trim() != "") ? review.trim() : "";
+          payload["notificationIcon"] = userId;
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
           db.collection("notifications").add(payload);
@@ -115,6 +119,7 @@ exports.createNotificationsForPost = functions.firestore
           payload["type"] = "FriendTastedFiveStar";
           payload["title"] = `${userData.firstName} said ${placeData.name} is excellent`;
           payload["body"] = (review.trim() != "") ? review.trim() : "";
+          payload["notificationIcon"] = userId;
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
           db.collection("notifications").add(payload);
@@ -274,6 +279,7 @@ exports.awardBadges = functions
                     type: "BadgeAwardedToYou",
                     title: `You were awarded the ${badgeName} badge`,
                     body: "Go to your profile to see your badge",
+                    notificationIcon: badgeFriendlyIdentifier,
                     notificationLink: user.id,
                     seen: false,
                     timestamp: admin.firestore.Timestamp.now(),
@@ -285,6 +291,7 @@ exports.awardBadges = functions
                       type: "BadgeAwardedToFriend",
                       title: `${userData.firstName} was awarded the ${badgeName} badge`,
                       body: "Go to their profile to see their badge",
+                      notificationIcon: badgeFriendlyIdentifier,
                       notificationLink: userFriend.id,
                       seen: false,
                       timestamp: admin.firestore.Timestamp.now(),
