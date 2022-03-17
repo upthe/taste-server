@@ -25,11 +25,10 @@ exports.createNotificationsForPost = functions.firestore
       const zipCodesToCities = {};
       await db.collection("neighborhoods").get().then((snapshot) => {
         snapshot.docs.forEach((neighborhood) => {
-          functions.logger.log("Processing neighborhood", neighborhood.id);
           const neighborhoodData = neighborhood.data();
           const city = neighborhoodData.city;
           neighborhoodData.zipCode.forEach((zipCode) => {
-            zipCodesToCities[zipCode] = city
+            zipCodesToCities[zipCode] = city;
           });
         });
       });
@@ -43,7 +42,7 @@ exports.createNotificationsForPost = functions.firestore
       const placeQds = await placeRef.get();
       const placeData = placeQds.data();
 
-      var placeCity = "";
+      let placeCity = "";
       const placeAddress = placeData.address;
       const placeAddressSplit = placeAddress.split(",");
       if (placeAddressSplit.length > 3) {
@@ -60,7 +59,7 @@ exports.createNotificationsForPost = functions.firestore
 
       const userFriends = userData.friends;
       userFriends.forEach(async (userFriend) => {
-        const userFriendRef = db.collection("users").doc(userFriend.id)
+        const userFriendRef = db.collection("users").doc(userFriend.id);
         const userFriendQds = await userFriendRef.get();
         const userFriendData = userFriendQds.data();
 
@@ -81,18 +80,18 @@ exports.createNotificationsForPost = functions.firestore
 
         if (userFriendTastedIds.includes(placeId)) {
           const userFriendPostRef = db.collection("posts").where("user", "==", userFriendRef).where("place", "==", placeRef).orderBy("timestamp", "desc").limit(1);
-          const userFriendPostQds = await userFriendPostRef.get()
+          const userFriendPostQds = await userFriendPostRef.get();
           const userFriendPostData = userFriendPostQds.docs[0].data();
           if (starRating == userFriendPostData.starRating) {
             payload["type"] = "FriendTastedPlaceYouTastedAgree";
-            payload["title"] = `${userData.firstName} agrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`
+            payload["title"] = `${userData.firstName} agrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`;
             payload["body"] = (review.trim() != "") ? review.trim() : "";
             payload["notificationLink"] = placeId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
           } else {
             payload["type"] = "FriendTastedPlaceYouTastedDisagree";
-            payload["title"] = `${userData.firstName} disagrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`
+            payload["title"] = `${userData.firstName} disagrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`;
             payload["body"] = (review.trim() != "") ? review.trim() : "";
             payload["notificationLink"] = placeId;
             functions.logger.log("Creating notification with payload", payload);
@@ -100,21 +99,21 @@ exports.createNotificationsForPost = functions.firestore
           }
         } else if (userFriendWantToTasteIds.includes(placeId)) {
           payload["type"] = "FriendTastedPlaceYouWantToTaste";
-          payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you want to taste`
+          payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you want to taste`;
           payload["body"] = (review.trim() != "") ? review.trim() : "";
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
           db.collection("notifications").add(payload);
         } else if (placeCity == userFriendData.location && starRating >= 4) {
           payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
-          payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you haven't tasted yet`
+          payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you haven't tasted yet`;
           payload["body"] = (review.trim() != "") ? review.trim() : "";
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
           db.collection("notifications").add(payload);
         } else if (starRating == 5) {
           payload["type"] = "FriendTastedFiveStar";
-          payload["title"] = `${userData.firstName} said ${placeData.name} is excellent`
+          payload["title"] = `${userData.firstName} said ${placeData.name} is excellent`;
           payload["body"] = (review.trim() != "") ? review.trim() : "";
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
@@ -133,11 +132,7 @@ exports.handleNotification = functions.firestore
       const notifData = snap.data();
       functions.logger.log("Dumping notification data", notifData);
 
-      const ownerId = notifData.ownerId;
-      const type = notifData.type;
-
-      // TODO: change this to await
-      return db.collection("users").doc(ownerId).get().then((qds) => {
+      return db.collection("users").doc(notifData.ownerId).get().then((qds) => {
         const userData = qds.data();
         const fcmToken = userData.fcmToken;
         if (!fcmToken) {
@@ -145,108 +140,14 @@ exports.handleNotification = functions.firestore
           return;
         }
 
-        if (type == "BadgeAwardedToYou") {
-          // Data fields: notificationDataBadgeFriendlyIdentifier
-          const notifDataBadgeFriendlyIdentifier = notifData.notificationDataBadgeFriendlyIdentifier;
-          db.collection("badges").where("friendlyIdentifier", "==", notifDataBadgeFriendlyIdentifier).get().then((snapshot) => {
-            const badge = snapshot.docs[0];
-            const badgeData = badge.data();
-
-            const title = `You were awarded the ${badgeData.name} badge`;
-            const body = "Go to your profile to see your badge";
-
-            const payload = admin.messaging.MessagingPayload = {
-              notification: {
-                title: title,
-                body: body,
-              },
-            };
-            functions.logger.log("Dumping userData.handle, fcmToken, payload, type, then sending message notification", userData.handle, fcmToken, payload, type);
-            admin.messaging().sendToDevice(fcmToken, payload);
-          });
-        } else if (type == "BadgeAwardedToFriend") {
-          // Data fields: notificationDataUserId, notificationDataBadgeFriendlyIdentifier
-          const notifDataUserId = notifData.notificationDataUserId;
-          const notifDataBadgeFriendlyIdentifier = notifData.notificationDataBadgeFriendlyIdentifier;
-
-          db.collection("users").doc(notifDataUserId).get().then((qds) => {
-            const notificationUserData = qds.data();
-            const userFirstName = notificationUserData.firstName;
-
-            db.collection("badges").where("friendlyIdentifier", "==", notifDataBadgeFriendlyIdentifier).get().then((snapshot) => {
-              const badge = snapshot.docs[0];
-              const badgeData = badge.data();
-
-              const title = `${userFirstName} was awarded the ${badgeData.name} badge`;
-              const body = "Go to their profile to see their badge";
-
-              const payload = admin.messaging.MessagingPayload = {
-                notification: {
-                  title: title,
-                  body: body,
-                },
-              };
-              functions.logger.log("Dumping userData.handle, fcmToken, payload, type, then sending message notification", userData.handle, fcmToken, payload, type);
-              admin.messaging().sendToDevice(fcmToken, payload);
-            });
-          });
-        } else {
-          // Data fields: notificationDataUserId, notificationDataPlaceId
-          const notifDataUserId = notifData.notificationDataUserId;
-          const notifDataPlaceId = notifData.notificationDataPlaceId;
-
-          db.collection("users").doc(notifDataUserId).get().then((qds) => {
-            const notificationUserData = qds.data();
-            const userFirstName = notificationUserData.firstName;
-
-            db.collection("places").doc(notifDataPlaceId).get().then((qds) => {
-              const notificationPlaceData = qds.data();
-              const placeName = notificationPlaceData.name;
-
-              let title = "";
-              let body = "";
-
-              // FUTURE: this needs to change given no favorites
-              switch (type) {
-                case "FriendFavoritedPlaceYouFavorited":
-                  title = `${userFirstName} favorited ${placeName}`;
-                  body = `You also favorited ${placeName} - see what ${userFirstName} said`;
-                  break;
-                case "FriendFavoritedPlaceYouTasted":
-                  title = `${userFirstName} favorited ${placeName}`;
-                  body = `You tasted ${placeName} - see what ${userFirstName} said`;
-                  break;
-                case "FriendFavoritedPlaceYouWantToTaste":
-                  title = `${userFirstName} favorited ${placeName}`;
-                  body = `You want to taste ${placeName} - see what ${userFirstName} said before you go`;
-                  break;
-                case "FriendFavoritedPlace":
-                  title = `${userFirstName} favorited ${placeName}`;
-                  body = `See what ${userFirstName} said`;
-                  break;
-                case "FriendTastedPlaceYouFavorited":
-                  title = `${userFirstName} tasted ${placeName}`;
-                  body = `You favorited ${placeName} - see what ${userFirstName} said`;
-                  break;
-                case "FriendTastedPlaceYouWantToTaste":
-                  title = `${userFirstName} tasted ${placeName}`;
-                  body = `You want to taste ${placeName} - see what ${userFirstName} said before you go`;
-                  break;
-                default:
-                  return;
-              }
-
-              const payload = admin.messaging.MessagingPayload = {
-                notification: {
-                  title: title,
-                  body: body,
-                },
-              };
-              functions.logger.log("Dumping userData.handle, fcmToken, payload, type, then sending message notification", userData.handle, fcmToken, payload, type);
-              admin.messaging().sendToDevice(fcmToken, payload);
-            });
-          });
-        }
+        const payload = admin.messaging.MessagingPayload = {
+          notification: {
+            title: notifData.title,
+            body: notifData.body,
+          },
+        };
+        functions.logger.log("Dumping userData.handle, fcmToken, payload, notifData.type, then sending message notification", userData.handle, fcmToken, payload, notifData.type);
+        admin.messaging().sendToDevice(fcmToken, payload);
       });
     });
 
@@ -287,7 +188,7 @@ exports.awardBadges = functions
     })
     .pubsub.schedule("0 10 * * *") // 10:00am everyday
     .timeZone("America/New_York")
-    .onRun((context) => {
+    .onRun(async (context) => {
       functions.logger.log("Starting to process awarding badges");
       const cuisineToBadgeFriendlyIdentifier = {
         "Bagel": "Tasted10BagelPlaces",
@@ -316,6 +217,20 @@ exports.awardBadges = functions
         "Sushi": "Tasted10SushiPlaces",
         "Thai": "Tasted10ThaiPlaces",
       };
+
+      const badgeFriendlyIdentifiersToDetails = {};
+      await db.collection("badges").get().then((snapshot) => {
+        snapshot.docs.forEach((badge) => {
+          const badgeData = badge.data();
+          const badgeFriendlyIdentifier = badgeData.friendlyIdentifier;
+          const badgeName = badgeData.name;
+          const badgeDescription = badgeData.description;
+          badgeFriendlyIdentifiersToDetails[badgeFriendlyIdentifier] = {
+            name: badgeName,
+            description: badgeDescription,
+          };
+        });
+      });
 
       return db.collection("users").get().then(async (snapshot) => {
         snapshot.docs.forEach((user) => {
@@ -352,32 +267,25 @@ exports.awardBadges = functions
                     badgeFriendlyIdentifiers: admin.firestore.FieldValue.arrayUnion(badgeFriendlyIdentifier),
                   });
 
-                  // TODO: send right payload to notifs, e.g.
-                  // const payload = {
-                  //   ownerId: userFriend.id,
-                  //   type: asdf,
-                  //   title: asdf,
-                  //   body: asdf,
-                  //   notificationLink: asdf,
-                  //   seen: false,
-                  //   timestamp: admin.firestore.Timestamp.now(),
-                  // };
+                  const badgeName = badgeFriendlyIdentifiersToDetails[badgeFriendlyIdentifier].name;
 
                   db.collection("notifications").add({
                     ownerId: user.id,
-                    notificationDataBadgeFriendlyIdentifier: badgeFriendlyIdentifier,
                     type: "BadgeAwardedToYou",
+                    title: `You were awarded the ${badgeName} badge`,
+                    body: "Go to your profile to see your badge",
+                    notificationLink: user.id,
                     seen: false,
                     timestamp: admin.firestore.Timestamp.now(),
                   });
 
                   userFriends.forEach((userFriend) => {
-                    const userFriendId = userFriend.id;
                     db.collection("notifications").add({
-                      ownerId: userFriendId,
-                      notificationDataUserId: user.id,
-                      notificationDataBadgeFriendlyIdentifier: badgeFriendlyIdentifier,
+                      ownerId: userFriend.id,
                       type: "BadgeAwardedToFriend",
+                      title: `${userData.firstName} was awarded the ${badgeName} badge`,
+                      body: "Go to their profile to see their badge",
+                      notificationLink: userFriend.id,
                       seen: false,
                       timestamp: admin.firestore.Timestamp.now(),
                     });
@@ -412,17 +320,18 @@ exports.setEmptyCuisines = functions
       });
     });
 
-exports.createPost = functions
-    .pubsub.schedule("0 */6 * * *") // Every 6 hours
-    .onRun(async (context) => {
-      const docId = "000000";
-      await db.collection("posts").doc(docId).delete()
-      return db.collection("posts").doc(docId).set({
-        starRating: 5,
-        review: "some review",
-        dishes: "dishes",
-        place: db.collection("places").doc("04454239dcb3e1bfd3670e834869b9f413a7379b49ebd926f317ca5d24b2ffef"),
-        user: db.collection("users").doc("ZL9uRDZXog21sG87hWMw"),
-        timestamp: admin.firestore.Timestamp.now(),
-      });
-    });
+// TEMP: keeping this around for now
+// exports.createPost = functions
+//     .pubsub.schedule("0 */6 * * *") // Every 6 hours
+//     .onRun(async (context) => {
+//       const docId = "000000";
+//       await db.collection("posts").doc(docId).delete()
+//       return db.collection("posts").doc(docId).set({
+//         starRating: 5,
+//         review: "some review",
+//         dishes: "dishes",
+//         place: db.collection("places").doc("04454239dcb3e1bfd3670e834869b9f413a7379b49ebd926f317ca5d24b2ffef"),
+//         user: db.collection("users").doc("ZL9uRDZXog21sG87hWMw"),
+//         timestamp: admin.firestore.Timestamp.now(),
+//       });
+//     });
