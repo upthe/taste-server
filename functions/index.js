@@ -37,6 +37,7 @@ exports.createNotificationsForPost = functions.firestore
       const placeId = data["place"]["_path"]["segments"][1];
       const starRating = data.starRating;
       const review = data.review;
+      const trimmedReview = review.trim();
 
       const placeRef = db.collection("places").doc(placeId);
       const placeQds = await placeRef.get();
@@ -84,16 +85,16 @@ exports.createNotificationsForPost = functions.firestore
           const userFriendPostData = userFriendPostQds.docs[0].data();
           if (starRating == userFriendPostData.starRating) {
             payload["type"] = "FriendTastedPlaceYouTastedAgree";
-            payload["title"] = `${userData.firstName} agrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`;
-            payload["body"] = (review.trim() != "") ? review.trim() : "";
+            payload["title"] = `${userData.firstName} agrees with your taste`;
+            payload["body"] = `They also said ${placeData.name} was ${starRatingDescriptors[starRating - 1]}`;
             payload["notificationIcon"] = userId;
             payload["notificationLink"] = placeId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
           } else {
             payload["type"] = "FriendTastedPlaceYouTastedDisagree";
-            payload["title"] = `${userData.firstName} disagrees with you and said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`;
-            payload["body"] = (review.trim() != "") ? review.trim() : "";
+            payload["title"] = `${userData.firstName} disagrees with your taste`;
+            payload["body"] = `You said it was ${starRatingDescriptors[userFriendPostData.starRating - 1]} but they said it was ${starRatingDescriptors[starRating - 1]}`;
             payload["notificationIcon"] = userId;
             payload["notificationLink"] = placeId;
             functions.logger.log("Creating notification with payload", payload);
@@ -101,24 +102,24 @@ exports.createNotificationsForPost = functions.firestore
           }
         } else if (userFriendWantToTasteIds.includes(placeId)) {
           payload["type"] = "FriendTastedPlaceYouWantToTaste";
-          payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you want to taste`;
-          payload["body"] = (review.trim() != "") ? review.trim() : "";
+          payload["title"] = `${userData.firstName} just tasted ${placeData.name}`;
+          payload["body"] = `You want to taste ${placeData.name} - see what they said`;
           payload["notificationIcon"] = userId;
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
           db.collection("notifications").add(payload);
         } else if (placeCity == userFriendData.location && starRating >= 4) {
           payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
-          payload["title"] = `${userData.firstName} tasted ${placeData.name}, a place you haven't tasted yet`;
-          payload["body"] = (review.trim() != "") ? review.trim() : "";
+          payload["title"] = `${userData.firstName} said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`;
+          payload["body"] = `You haven't tasted ${placeData.name} yet - see what they said`;
           payload["notificationIcon"] = userId;
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
           db.collection("notifications").add(payload);
         } else if (starRating == 5) {
           payload["type"] = "FriendTastedFiveStar";
-          payload["title"] = `${userData.firstName} said ${placeData.name} is excellent`;
-          payload["body"] = (review.trim() != "") ? review.trim() : "";
+          payload["title"] = `${userData.firstName} said ${placeData.name} was excellent`;
+          payload["body"] = trimmedReview;
           payload["notificationIcon"] = userId;
           payload["notificationLink"] = placeId;
           functions.logger.log("Creating notification with payload", payload);
