@@ -293,7 +293,7 @@ exports.awardBadges = functions
                       title: `${userData.firstName} was awarded the ${badgeName} badge`,
                       body: "Go to their profile to see their badge",
                       notificationIcon: badgeFriendlyIdentifier,
-                      notificationLink: userFriend.id,
+                      notificationLink: user.id,
                       seen: false,
                       timestamp: admin.firestore.Timestamp.now(),
                     });
