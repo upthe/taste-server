@@ -110,7 +110,7 @@ exports.createNotificationsForPost = functions.firestore
           db.collection("notifications").add(payload);
         } else if (placeCity == userFriendData.location && starRating >= 4) {
           payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
-          payload["title"] = `${userData.firstName} said ${placeData.name} was ${starRatingDescriptors[starRating - 1]}`;
+          payload["title"] = `${userData.firstName} just tasted ${placeData.name}`;
           payload["body"] = `You haven't tasted ${placeData.name} yet - see what they said`;
           payload["notificationIcon"] = userId;
           payload["notificationLink"] = placeId;
