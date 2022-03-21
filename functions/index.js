@@ -58,8 +58,18 @@ exports.createNotificationsForPost = functions.firestore
       const userQds = await userRef.get();
       const userData = userQds.data();
 
+      const userPostsRef = db.collection("posts").where("user", "==", userRef);
+      const userPostsQds = await userPostsRef.get()
+      const userPostsCount = userPostsQds.docs.length;
+
       const userFriends = userData.friends;
       userFriends.forEach(async (userFriend) => {
+        const payload = {
+          ownerId: userFriend.id,
+          seen: false,
+          timestamp: admin.firestore.Timestamp.now(),
+        };
+
         const userFriendRef = db.collection("users").doc(userFriend.id);
         const userFriendQds = await userFriendRef.get();
         const userFriendData = userFriendQds.data();
@@ -73,57 +83,61 @@ exports.createNotificationsForPost = functions.firestore
           userFriendWantToTasteIds.push(place.id);
         });
 
-        const payload = {
-          ownerId: userFriend.id,
-          seen: false,
-          timestamp: admin.firestore.Timestamp.now(),
-        };
-
-        if (userFriendTastedIds.includes(placeId)) {
-          const userFriendPostRef = db.collection("posts").where("user", "==", userFriendRef).where("place", "==", placeRef).orderBy("timestamp", "desc").limit(1);
-          const userFriendPostQds = await userFriendPostRef.get();
-          const userFriendPostData = userFriendPostQds.docs[0].data();
-          if (starRating == userFriendPostData.starRating) {
-            payload["type"] = "FriendTastedPlaceYouTastedAgree";
-            payload["title"] = `${userData.firstName} agrees with your taste`;
-            payload["body"] = `They also said ${placeData.name} was ${starRatingDescriptors[starRating - 1]}`;
+        if (userPostsCount == 1) {
+          payload["type"] = "FriendFirstTaste";
+          payload["title"] = `${userData.firstName} just added their first taste`;
+          payload["body"] = `They said ${placeData.name} was ${starRatingDescriptors[starRating - 1]}`;
+          payload["notificationIcon"] = userId;
+          payload["notificationLink"] = placeId;
+          functions.logger.log("Creating notification with payload", payload);
+          db.collection("notifications").add(payload);
+        } else {
+          if (userFriendTastedIds.includes(placeId)) {
+            const userFriendPostRef = db.collection("posts").where("user", "==", userFriendRef).where("place", "==", placeRef).orderBy("timestamp", "desc").limit(1);
+            const userFriendPostQds = await userFriendPostRef.get();
+            const userFriendPostData = userFriendPostQds.docs[0].data();
+            if (starRating == userFriendPostData.starRating) {
+              payload["type"] = "FriendTastedPlaceYouTastedAgree";
+              payload["title"] = `${userData.firstName} agrees with your taste`;
+              payload["body"] = `They also said ${placeData.name} was ${starRatingDescriptors[starRating - 1]}`;
+              payload["notificationIcon"] = userId;
+              payload["notificationLink"] = placeId;
+              functions.logger.log("Creating notification with payload", payload);
+              db.collection("notifications").add(payload);
+            } else {
+              payload["type"] = "FriendTastedPlaceYouTastedDisagree";
+              payload["title"] = `${userData.firstName} disagrees with your taste`;
+              payload["body"] = `You said ${placeData.name} was ${starRatingDescriptors[userFriendPostData.starRating - 1]} but they said it was ${starRatingDescriptors[starRating - 1]}`;
+              payload["notificationIcon"] = userId;
+              payload["notificationLink"] = placeId;
+              functions.logger.log("Creating notification with payload", payload);
+              db.collection("notifications").add(payload);
+            }
+          } else if (userFriendWantToTasteIds.includes(placeId)) {
+            payload["type"] = "FriendTastedPlaceYouWantToTaste";
+            payload["title"] = `${userData.firstName} just tasted ${placeData.name}`;
+            payload["body"] = `You want to taste ${placeData.name} - see what they said`;
             payload["notificationIcon"] = userId;
             payload["notificationLink"] = placeId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
-          } else {
-            payload["type"] = "FriendTastedPlaceYouTastedDisagree";
-            payload["title"] = `${userData.firstName} disagrees with your taste`;
-            payload["body"] = `You said ${placeData.name} was ${starRatingDescriptors[userFriendPostData.starRating - 1]} but they said it was ${starRatingDescriptors[starRating - 1]}`;
+          } else if (placeCity == userFriendData.location && starRating >= 4) {
+            payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
+            payload["title"] = `${userData.firstName} just tasted ${placeData.name}`;
+            payload["body"] = `You haven't tasted ${placeData.name} yet - see what they said`;
+            payload["notificationIcon"] = userId;
+            payload["notificationLink"] = placeId;
+            functions.logger.log("Creating notification with payload", payload);
+            db.collection("notifications").add(payload);
+          } else if (starRating == 5) {
+            payload["type"] = "FriendTastedFiveStar";
+            payload["title"] = `${userData.firstName} said ${placeData.name} was excellent`;
+            payload["body"] = trimmedReview;
             payload["notificationIcon"] = userId;
             payload["notificationLink"] = placeId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
           }
-        } else if (userFriendWantToTasteIds.includes(placeId)) {
-          payload["type"] = "FriendTastedPlaceYouWantToTaste";
-          payload["title"] = `${userData.firstName} just tasted ${placeData.name}`;
-          payload["body"] = `You want to taste ${placeData.name} - see what they said`;
-          payload["notificationIcon"] = userId;
-          payload["notificationLink"] = placeId;
-          functions.logger.log("Creating notification with payload", payload);
-          db.collection("notifications").add(payload);
-        } else if (placeCity == userFriendData.location && starRating >= 4) {
-          payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
-          payload["title"] = `${userData.firstName} just tasted ${placeData.name}`;
-          payload["body"] = `You haven't tasted ${placeData.name} yet - see what they said`;
-          payload["notificationIcon"] = userId;
-          payload["notificationLink"] = placeId;
-          functions.logger.log("Creating notification with payload", payload);
-          db.collection("notifications").add(payload);
-        } else if (starRating == 5) {
-          payload["type"] = "FriendTastedFiveStar";
-          payload["title"] = `${userData.firstName} said ${placeData.name} was excellent`;
-          payload["body"] = trimmedReview;
-          payload["notificationIcon"] = userId;
-          payload["notificationLink"] = placeId;
-          functions.logger.log("Creating notification with payload", payload);
-          db.collection("notifications").add(payload);
         }
       });
     });
@@ -169,12 +183,10 @@ exports.clearStreaks = functions
       const now = admin.firestore.Timestamp.now();
       return db.collection("users").get().then((snapshot) => {
         snapshot.docs.forEach((user) => {
-          functions.logger.log("Processing user", user.id, user.data().firstName);
           db.collection("posts").where("user", "==", user.ref).orderBy("timestamp", "desc").limit(1).get().then((snapshot) => {
             const latestPost = snapshot.docs[0];
             const latestPostTimestamp = latestPost.data()["timestamp"];
             const diffDays = (now - latestPostTimestamp) / 60 / 60 / 24;
-            functions.logger.log("Dumping latest post, user, diffDays", latestPost.id, user.id, diffDays);
             if (diffDays > 7) {
               functions.logger.log("Clearing streak for user", user.id);
               user.ref.set({
@@ -240,7 +252,6 @@ exports.awardBadges = functions
 
       return db.collection("users").get().then(async (snapshot) => {
         snapshot.docs.forEach((user) => {
-          functions.logger.log("Processing user", user.id);
           const userData = user.data();
           const userBadgeFriendlyIdentifiers = userData.badgeFriendlyIdentifiers ? userData.badgeFriendlyIdentifiers : [];
           const userTastedPlaceRefs = userData.tasted ? userData.tasted : [];
@@ -315,9 +326,7 @@ exports.setEmptyCuisines = functions
       functions.logger.log("Starting to process setting empty cuisines");
       return db.collection("places").get().then((snapshot) => {
         snapshot.docs.forEach((place) => {
-          functions.logger.log("Processing place", place.id);
           const placeData = place.data();
-
           if (!Object.keys(placeData).includes("cuisines")) {
             functions.logger.log("Found place with no cuisines field, setting to list with element empty string, dumping place.id, placeData.name", place.id, placeData.name);
             place.ref.update({
@@ -337,7 +346,7 @@ exports.setEmptyCuisines = functions
 //       return db.collection("posts").doc(docId).set({
 //         starRating: 5,
 //         review: "some review",
-//         dishes: "dishes",
+//         dishes: "some dishes",
 //         place: db.collection("places").doc("04454239dcb3e1bfd3670e834869b9f413a7379b49ebd926f317ca5d24b2ffef"),
 //         user: db.collection("users").doc("ZL9uRDZXog21sG87hWMw"),
 //         timestamp: admin.firestore.Timestamp.now(),
