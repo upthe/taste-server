@@ -59,7 +59,7 @@ exports.createNotificationsForPost = functions.firestore
       const userData = userQds.data();
 
       const userPostsRef = db.collection("posts").where("user", "==", userRef);
-      const userPostsQds = await userPostsRef.get()
+      const userPostsQds = await userPostsRef.get();
       const userPostsCount = userPostsQds.docs.length;
 
       const userFriends = userData.friends;
