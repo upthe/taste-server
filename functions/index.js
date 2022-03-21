@@ -94,7 +94,7 @@ exports.createNotificationsForPost = functions.firestore
           } else {
             payload["type"] = "FriendTastedPlaceYouTastedDisagree";
             payload["title"] = `${userData.firstName} disagrees with your taste`;
-            payload["body"] = `You said it was ${starRatingDescriptors[userFriendPostData.starRating - 1]} but they said it was ${starRatingDescriptors[starRating - 1]}`;
+            payload["body"] = `You said ${placeData.name} was ${starRatingDescriptors[userFriendPostData.starRating - 1]} but they said it was ${starRatingDescriptors[starRating - 1]}`;
             payload["notificationIcon"] = userId;
             payload["notificationLink"] = placeId;
             functions.logger.log("Creating notification with payload", payload);
@@ -110,7 +110,7 @@ exports.createNotificationsForPost = functions.firestore
           db.collection("notifications").add(payload);
         } else if (placeCity == userFriendData.location && starRating >= 4) {
           payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
-          payload["title"] = `${userData.firstName} said ${placeData.name} is ${starRatingDescriptors[starRating - 1]}`;
+          payload["title"] = `${userData.firstName} said ${placeData.name} was ${starRatingDescriptors[starRating - 1]}`;
           payload["body"] = `You haven't tasted ${placeData.name} yet - see what they said`;
           payload["notificationIcon"] = userId;
           payload["notificationLink"] = placeId;
