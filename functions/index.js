@@ -337,6 +337,53 @@ exports.setEmptyCuisines = functions
       });
     });
 
+exports.addWantToTaste = functions
+    .https.onCall(async (data, context) => {
+      functions.logger.log("Starting to process want to taste");
+      const userId = data.userId;
+      const placeId = data.placeId;
+
+      const userRef = db.collection("users").doc(userId);
+      const userQds = await userRef.get();
+      const userData = userQds.data();
+
+      const placeRef = db.collection("places").doc(placeId);
+      const placeQds = await placeRef.get();
+      const placeData = placeQds.data();
+
+      const userFriends = await db.collection("users").where("friends", "array-contains", userRef).get();
+      userFriends.forEach(async (userFriend) => {
+        const userFriendRef = db.collection("users").doc(userFriend.id);
+        const userFriendQds = await userFriendRef.get();
+        const userFriendData = userFriendQds.data();
+
+        const userFriendTastedIds = [];
+        userFriendData.tasted.forEach((place) => {
+          userFriendTastedIds.push(place.id);
+        });
+        if (!userFriendTastedIds.includes(placeId)) {
+          return;
+        }
+
+        const userFriendPostRef = db.collection("posts").where("user", "==", userFriendRef).where("place", "==", placeRef).orderBy("timestamp", "desc").limit(1);
+        const userFriendPostQds = await userFriendPostRef.get();
+        const userFriendPostData = userFriendPostQds.docs[0].data();
+        if (userFriendPostData.starRating >= 4) {
+          functions.logger.log("Creating notification, dumping userData.handle, userFriendData.handle, placeData.name, placeId", userData.handle, userFriendData.handle, placeData.name, placeId);
+          // db.collection("notifications").add({
+          //   ownerId: userFriend.id,
+          //   type: "FriendWantToTaste",
+          //   title: `${userData.firstName} wants to taste ${placeData.name}`,
+          //   body: "Your taste helped them discover this place - keep it up",
+          //   notificationIcon: userId,
+          //   notificationLink: placeId,
+          //   seen: false,
+          //   timestamp: admin.firestore.Timestamp.now(),
+          // });
+        }
+      });
+    });
+
 // TEMP: keeping this around for now
 // exports.createPost = functions
 //     .pubsub.schedule("0 */6 * * *") // Every 6 hours
