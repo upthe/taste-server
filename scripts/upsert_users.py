@@ -55,6 +55,7 @@ def add_users(users):
             'favorites': [],
             'tasted': [],
             'wantToTaste': [],
+            'friends': [],
             'creationTimestamp': firestore.SERVER_TIMESTAMP
         }
         db.collection('users').add(data)
