@@ -370,16 +370,16 @@ exports.addWantToTaste = functions
         const userFriendPostData = userFriendPostQds.docs[0].data();
         if (userFriendPostData.starRating >= 4) {
           functions.logger.log("Creating notification, dumping userData.handle, userFriendData.handle, placeData.name, placeId", userData.handle, userFriendData.handle, placeData.name, placeId);
-          // db.collection("notifications").add({
-          //   ownerId: userFriend.id,
-          //   type: "FriendWantToTaste",
-          //   title: `${userData.firstName} wants to taste ${placeData.name}`,
-          //   body: "Your taste helped them discover this place - keep it up",
-          //   notificationIcon: userId,
-          //   notificationLink: placeId,
-          //   seen: false,
-          //   timestamp: admin.firestore.Timestamp.now(),
-          // });
+          db.collection("notifications").add({
+            ownerId: userFriend.id,
+            type: "FriendWantsToTaste",
+            title: `${userData.firstName} wants to taste ${placeData.name}`,
+            body: "Your taste helped them discover this place - keep it up",
+            notificationIcon: userId,
+            notificationLink: placeId,
+            seen: false,
+            timestamp: admin.firestore.Timestamp.now(),
+          });
         }
       });
     });
