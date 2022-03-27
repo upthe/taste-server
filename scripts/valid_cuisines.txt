@@ -1,0 +1,26 @@
+Bar
+Bagel
+Bakery
+Breakfast/Brunch
+Burrito/Taco
+Burger
+Cafe
+Chicken
+Chinese
+Dessert
+Indian
+Italian
+Sushi
+Pizza
+Ramen
+Salad
+Sandwich
+Thai
+Japanese
+Korean
+Mediterranean/Middle Eastern
+Mexican
+Southern
+French
+New American
+Ethiopian
