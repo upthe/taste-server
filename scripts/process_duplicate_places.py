@@ -85,7 +85,8 @@ def process_duplicate_places(duplicate_places):
             print(f'{i}: {place.name}, {place.address}')
         index = int(input('Select a place index to use: '))
         if index >= len(places):
-            exit('ERROR: invalid index, exiting')
+            print('WARNING: invalid index, continuing')
+            continue
         replace_places(places[index].id, [p.id for p in places if p.id != places[index].id])
 
 if __name__ == '__main__':
