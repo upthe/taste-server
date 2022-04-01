@@ -33,12 +33,12 @@ def parse_users_file(users_path):
         reader = csv.reader(f, delimiter=',')
         for line in reader:
             users.append(User(
-                first_name=line[0],
-                last_name=line[1],
-                email=line[2],
-                phone_number=line[3],
-                location=line[4],
-                handle=line[5]
+                first_name=line[0].strip(),
+                last_name=line[1].strip(),
+                email=line[2].strip(),
+                phone_number=line[3].strip(),
+                location=line[4].strip(),
+                handle=line[5].strip()
             ))
     return users
 
