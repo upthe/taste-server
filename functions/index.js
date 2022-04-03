@@ -170,20 +170,20 @@ exports.createNotificationsForPostReply = functions.firestore
       const postOwnerData = postOwnerQds.data();
 
       // Get the person who replied
-      replyOwnerId = replyData["owner"];
+      const replyOwnerId = replyData["owner"];
       const replyOwnerRef = db.collection("users").doc(replyOwnerId);
       const replyOwnerQds = await replyOwnerRef.get();
       const replyOwnerData = replyOwnerQds.data();
 
       // Get the people who've replied already (and remove the person who just replied)
-      var setExistingRepliesOwnerIds = new Set();
+      const setExistingRepliesOwnerIds = new Set();
       await postRef.collection("replies").get().then((snapshot) => {
         snapshot.docs.forEach((replyQds) => {
           setExistingRepliesOwnerIds.add(replyQds.data()["owner"]);
         });
       });
       setExistingRepliesOwnerIds.delete(replyOwnerId);
-      existingRepliesOwnerIds = [...new Set(setExistingRepliesOwnerIds)];
+      const existingRepliesOwnerIds = [...new Set(setExistingRepliesOwnerIds)];
 
       // Send notification to owner of post
       const payload = {
