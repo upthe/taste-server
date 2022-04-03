@@ -171,7 +171,7 @@ exports.createNotificationsForPostReply = functions.firestore
       const postOwnerData = postOwnerQds.data();
 
       // Get the person who replied
-      const replyOwnerId = replyData["owner"];
+      const replyOwnerId = replyData.owner.id;
       const replyOwnerRef = db.collection("users").doc(replyOwnerId);
       const replyOwnerQds = await replyOwnerRef.get();
       const replyOwnerData = replyOwnerQds.data();
@@ -180,40 +180,44 @@ exports.createNotificationsForPostReply = functions.firestore
       const setExistingRepliesOwnerIds = new Set();
       await postRef.collection("replies").get().then((snapshot) => {
         snapshot.docs.forEach((replyQds) => {
-          setExistingRepliesOwnerIds.add(replyQds.data()["owner"]);
+          setExistingRepliesOwnerIds.add(replyQds.data()["owner"]["_path"]["segments"][1]);
         });
       });
       setExistingRepliesOwnerIds.delete(replyOwnerId);
       const existingRepliesOwnerIds = [...new Set(setExistingRepliesOwnerIds)];
 
       // Send notification to owner of post
-      const payload = {
-        ownerId: postData.user.id,
-        type: "FriendRepliedToYourTaste",
-        title: `${replyOwnerData.firstName} replied to your taste of ${placeData.name}`,
-        body: `${replyData.reply}`,
-        notificationIcon: replyOwnerId,
-        notificationLink: postId,
-        seen: false,
-        timestamp: admin.firestore.Timestamp.now(),
-      };
-      functions.logger.log("Creating notification with payload (FriendRepliedToYourTaste)", payload);
-      await db.collection("notifications").add(payload);
-
-      // Send notifications to everyone that's replied so far
-      existingRepliesOwnerIds.forEach((existingReplyOwnerId) => {
+      if (postData.user.id != replyOwnerId) {
         const payload = {
-          ownerId: existingReplyOwnerId,
-          type: "UserRepliedToTaste",
-          title: `${replyOwnerData.firstName} replied to a taste you're following`,
-          body: `They replied to ${postOwnerData.firstName}'s taste of ${placeData.name} - see what they said`,
+          ownerId: postData.user.id,
+          type: "FriendRepliedToYourTaste",
+          title: `${replyOwnerData.firstName} replied to your taste of ${placeData.name}`,
+          body: `${replyData.reply}`,
           notificationIcon: replyOwnerId,
           notificationLink: postId,
           seen: false,
           timestamp: admin.firestore.Timestamp.now(),
         };
-        functions.logger.log("Creating notification with payload (UserRepliedToTaste)", payload);
-        db.collection("notifications").add(payload);
+        functions.logger.log("Creating notification with payload (FriendRepliedToYourTaste)", payload);
+        await db.collection("notifications").add(payload);
+      }
+
+      // Send notifications to everyone that's replied so far
+      existingRepliesOwnerIds.forEach((existingReplyOwnerId) => {
+        if (existingReplyOwnerId != replyOwnerId) {
+          const payload = {
+            ownerId: existingReplyOwnerId,
+            type: "UserRepliedToTaste",
+            title: `${replyOwnerData.firstName} replied to a taste you're following`,
+            body: `They replied to ${postOwnerData.firstName}'s taste of ${placeData.name} - see what they said`,
+            notificationIcon: replyOwnerId,
+            notificationLink: postId,
+            seen: false,
+            timestamp: admin.firestore.Timestamp.now(),
+          };
+          functions.logger.log("Creating notification with payload (UserRepliedToTaste)", payload);
+          db.collection("notifications").add(payload);
+        }
       });
     });
 
@@ -481,7 +485,7 @@ exports.addWantToTaste = functions
 //     .onRun(async (context) => {
 //       const docId = "000000";
 //       return db.collection("posts").doc(docId).collection("replies").add({
-//         "owner": "riFzMexbL5LYPjFRn7n5",
+//         "owner": db.collection("users").doc("AxbXPlEJ6xmTSEDXwffY"),
 //         "reply": "some reply",
 //         "timestamp": admin.firestore.Timestamp.now()
 //       });
