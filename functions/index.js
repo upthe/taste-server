@@ -33,8 +33,10 @@ exports.createNotificationsForPost = functions.firestore
         });
       });
 
+      const postId = context.params.postId;
       const userId = data["user"]["_path"]["segments"][1];
       const placeId = data["place"]["_path"]["segments"][1];
+
       const starRating = data.starRating;
       const review = data.review;
       const trimmedReview = review.trim();
@@ -89,7 +91,7 @@ exports.createNotificationsForPost = functions.firestore
           payload["title"] = `${userData.firstName} just added their first taste`;
           payload["body"] = `They said ${placeData.name} was ${starRatingDescriptors[starRating - 1]}`;
           payload["notificationIcon"] = userId;
-          payload["notificationLink"] = placeId;
+          payload["notificationLink"] = postId;
           functions.logger.log("Creating notification with payload", payload);
           db.collection("notifications").add(payload);
         } else {
@@ -102,7 +104,7 @@ exports.createNotificationsForPost = functions.firestore
               payload["title"] = `${userData.firstName} agrees with your taste`;
               payload["body"] = `They also said ${placeData.name} was ${starRatingDescriptors[starRating - 1]}`;
               payload["notificationIcon"] = userId;
-              payload["notificationLink"] = placeId;
+              payload["notificationLink"] = postId;
               functions.logger.log("Creating notification with payload", payload);
               db.collection("notifications").add(payload);
             } else {
@@ -110,7 +112,7 @@ exports.createNotificationsForPost = functions.firestore
               payload["title"] = `${userData.firstName} disagrees with your taste`;
               payload["body"] = `You said ${placeData.name} was ${starRatingDescriptors[userFriendPostData.starRating - 1]} but they said it was ${starRatingDescriptors[starRating - 1]}`;
               payload["notificationIcon"] = userId;
-              payload["notificationLink"] = placeId;
+              payload["notificationLink"] = postId;
               functions.logger.log("Creating notification with payload", payload);
               db.collection("notifications").add(payload);
             }
@@ -119,7 +121,7 @@ exports.createNotificationsForPost = functions.firestore
             payload["title"] = `${userData.firstName} just tasted ${placeData.name}`;
             payload["body"] = `You want to taste ${placeData.name} - see what they said`;
             payload["notificationIcon"] = userId;
-            payload["notificationLink"] = placeId;
+            payload["notificationLink"] = postId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
           } else if (placeCity == userFriendData.location && starRating >= 4) {
@@ -127,7 +129,7 @@ exports.createNotificationsForPost = functions.firestore
             payload["title"] = `${userData.firstName} just tasted ${placeData.name}`;
             payload["body"] = `You haven't tasted ${placeData.name} yet - see what they said`;
             payload["notificationIcon"] = userId;
-            payload["notificationLink"] = placeId;
+            payload["notificationLink"] = postId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
           } else if (starRating == 5) {
@@ -135,7 +137,7 @@ exports.createNotificationsForPost = functions.firestore
             payload["title"] = `${userData.firstName} said ${placeData.name} was excellent`;
             payload["body"] = trimmedReview;
             payload["notificationIcon"] = userId;
-            payload["notificationLink"] = placeId;
+            payload["notificationLink"] = postId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
           }
