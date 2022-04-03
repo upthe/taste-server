@@ -458,7 +458,7 @@ exports.addWantToTaste = functions
       });
     });
 
-// TEMP: keeping this around for now
+// // TEMP: keeping this around for now
 // exports.createPost = functions
 //     .pubsub.schedule("0 */6 * * *") // Every 6 hours
 //     .onRun(async (context) => {
@@ -471,5 +471,17 @@ exports.addWantToTaste = functions
 //         place: db.collection("places").doc("04454239dcb3e1bfd3670e834869b9f413a7379b49ebd926f317ca5d24b2ffef"),
 //         user: db.collection("users").doc("ZL9uRDZXog21sG87hWMw"),
 //         timestamp: admin.firestore.Timestamp.now(),
+//       });
+//     });
+
+// // TEMP: keeping this around for now, too
+// exports.createReply = functions
+//     .pubsub.schedule("0 */6 * * *") // Every 6 hours
+//     .onRun(async (context) => {
+//       const docId = "000000";
+//       return db.collection("posts").doc(docId).collection("replies").add({
+//         "owner": "riFzMexbL5LYPjFRn7n5",
+//         "reply": "some reply",
+//         "timestamp": admin.firestore.Timestamp.now()
 //       });
 //     });
