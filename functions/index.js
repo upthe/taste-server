@@ -83,6 +83,7 @@ exports.createNotificationsForPost = functions.firestore
           userFriendWantToTasteIds.push(place.id);
         });
 
+        // TODO: all notificationLink keys need to change to post ID
         if (userPostsCount == 1) {
           payload["type"] = "FriendFirstTaste";
           payload["title"] = `${userData.firstName} just added their first taste`;
