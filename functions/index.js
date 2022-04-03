@@ -142,6 +142,80 @@ exports.createNotificationsForPost = functions.firestore
       });
     });
 
+exports.createNotificationsForPostReply = functions.firestore
+    .document("/posts/{postId}/replies/{replyId}")
+    .onCreate(async (snap, context) => {
+      functions.logger.log("Starting to process post reply to create notifications", context.params.postId);
+      const data = snap.data();
+      functions.logger.log("Dumping reply data", data);
+
+      const postId = context.params.postId;
+      const replyId = context.params.replyId;
+
+      const postRef = db.collection("posts").doc(postId);
+      const postQds = await postRef.get();
+      const postData = postQds.data();
+
+      const placeRef = db.collection("places").doc(postData.place.id);
+      const placeQds = await placeRef.get();
+      const placeData = placeQds.data();
+
+      const replyRef = postRef.collection("replies").doc(replyId);
+      const replyQds = await replyRef.get();
+      const replyData = replyQds.data();
+
+      // Get the owner of the post
+      const postOwnerRef = db.collection("users").doc(postData.user.id);
+      const postOwnerQds = await postOwnerRef.get();
+      const postOwnerData = postOwnerQds.data();
+
+      // Get the person who replied
+      replyOwnerId = replyData["owner"];
+      const replyOwnerRef = db.collection("users").doc(replyOwnerId);
+      const replyOwnerQds = await replyOwnerRef.get();
+      const replyOwnerData = replyOwnerQds.data();
+
+      // Get the people who've replied already (and remove the person who just replied)
+      var setExistingRepliesOwnerIds = new Set();
+      await postRef.collection("replies").get().then((snapshot) => {
+        snapshot.docs.forEach((replyQds) => {
+          setExistingRepliesOwnerIds.add(replyQds.data()["owner"]);
+        });
+      });
+      setExistingRepliesOwnerIds.delete(replyOwnerId);
+      existingRepliesOwnerIds = [...new Set(setExistingRepliesOwnerIds)];
+
+      // Send notification to owner of post
+      const payload = {
+        ownerId: postData.user.id,
+        type: "FriendRepliedToYourTaste",
+        title: `${replyOwnerData.firstName} replied to your taste of ${placeData.name}`,
+        body: `${replyData.reply}`,
+        notificationIcon: replyOwnerId,
+        notificationLink: postId,
+        seen: false,
+        timestamp: admin.firestore.Timestamp.now(),
+      };
+      functions.logger.log("Creating notification with payload (FriendRepliedToYourTaste)", payload);
+      await db.collection("notifications").add(payload);
+
+      // Send notifications to everyone that's replied so far
+      existingRepliesOwnerIds.forEach((existingReplyOwnerId) => {
+        const payload = {
+          ownerId: existingReplyOwnerId,
+          type: "UserRepliedToTaste",
+          title: `${replyOwnerData.firstName} replied to a taste you're following`,
+          body: `They replied to ${postOwnerData.firstName}'s taste of ${placeData.name} - see what they said`,
+          notificationIcon: replyOwnerId,
+          notificationLink: postId,
+          seen: false,
+          timestamp: admin.firestore.Timestamp.now(),
+        };
+        functions.logger.log("Creating notification with payload (UserRepliedToTaste)", payload);
+        db.collection("notifications").add(payload);
+      });
+    });
+
 // Triggered when a notification is created so we can send notifications
 // FUTURE: this function isn't truly idempotent and Cloud Functions doesn't guarantee single execution - just
 // that there is an execution. In edge cases, users may get multiple notifications for the same event
