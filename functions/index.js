@@ -178,13 +178,14 @@ exports.createNotificationsForPostReply = functions.firestore
       const replyOwnerQds = await replyOwnerRef.get();
       const replyOwnerData = replyOwnerQds.data();
 
-      // Get the people who've replied already (and remove the person who just replied)
+      // Get the people who've replied already (and remove the post owner and person who just replied)
       const setExistingRepliesOwnerIds = new Set();
       await postRef.collection("replies").get().then((snapshot) => {
         snapshot.docs.forEach((replyQds) => {
           setExistingRepliesOwnerIds.add(replyQds.data()["owner"]["_path"]["segments"][1]);
         });
       });
+      setExistingRepliesOwnerIds.delete(postData.user.id);
       setExistingRepliesOwnerIds.delete(replyOwnerId);
       const existingRepliesOwnerIds = [...new Set(setExistingRepliesOwnerIds)];
 
@@ -206,20 +207,18 @@ exports.createNotificationsForPostReply = functions.firestore
 
       // Send notifications to everyone that's replied so far
       existingRepliesOwnerIds.forEach((existingReplyOwnerId) => {
-        if (existingReplyOwnerId != replyOwnerId) {
-          const payload = {
-            ownerId: existingReplyOwnerId,
-            type: "UserRepliedToTaste",
-            title: `${replyOwnerData.firstName} replied to a taste you're following`,
-            body: `They replied to ${postOwnerData.firstName}'s taste of ${placeData.name} - see what they said`,
-            notificationIcon: replyOwnerId,
-            notificationLink: postId,
-            seen: false,
-            timestamp: admin.firestore.Timestamp.now(),
-          };
-          functions.logger.log("Creating notification with payload (UserRepliedToTaste)", payload);
-          db.collection("notifications").add(payload);
-        }
+        const payload = {
+          ownerId: existingReplyOwnerId,
+          type: "UserRepliedToTaste",
+          title: `${replyOwnerData.firstName} replied to a taste you're following`,
+          body: `They replied to ${postOwnerData.firstName}'s taste of ${placeData.name} - see what they said`,
+          notificationIcon: replyOwnerId,
+          notificationLink: postId,
+          seen: false,
+          timestamp: admin.firestore.Timestamp.now(),
+        };
+        functions.logger.log("Creating notification with payload (UserRepliedToTaste)", payload);
+        db.collection("notifications").add(payload);
       });
     });
 
