@@ -7,12 +7,11 @@ from firebase_admin import credentials, firestore
 from os import environ
 
 class User:
-    def __init__(self, first_name, last_name, email, phone_number, location, handle):
+    def __init__(self, first_name, last_name, email, phone_number, handle):
         self.first_name = first_name
         self.last_name = last_name
         self.email = email
         self.phone_number = phone_number
-        self.location = location
         self.handle = handle
 
 def get_current_users(db):
@@ -22,9 +21,8 @@ def get_current_users(db):
         last_name = user_doc.get('lastName')
         email = user_doc.get('email')
         phone_number = user_doc.get('phoneNumber')
-        location = user_doc.get('location')
         handle = user_doc.get('handle')
-        users.append(User(first_name, last_name, email, phone_number, location, handle))
+        users.append(User(first_name, last_name, email, phone_number, handle))
     return users
 
 def parse_users_file(users_path):
@@ -37,8 +35,7 @@ def parse_users_file(users_path):
                 last_name=line[1].strip(),
                 email=line[2].strip(),
                 phone_number=line[3].strip(),
-                location=line[4].strip(),
-                handle=line[5].strip()
+                handle=line[4].strip()
             ))
     return users
 
@@ -50,7 +47,6 @@ def add_users(users):
             'lastName': user.last_name,
             'email': user.email,
             'phoneNumber': f'+1{user.phone_number}',
-            'location': user.location,
             'handle': user.handle,
             'favorites': [],
             'tasted': [],

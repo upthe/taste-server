@@ -45,17 +45,6 @@ exports.createNotificationsForPost = functions.firestore
       const placeQds = await placeRef.get();
       const placeData = placeQds.data();
 
-      let placeCity = "";
-      const placeAddress = placeData.address;
-      const placeAddressSplit = placeAddress.split(",");
-      if (placeAddressSplit.length > 3) {
-        const token = placeAddressSplit[placeAddressSplit.length - 2];
-        const placeZipCode = token.substring(token.length - 5).trim();
-        if (Object.keys(zipCodesToCities).includes(placeZipCode)) {
-          placeCity = zipCodesToCities[placeZipCode];
-        }
-      }
-
       const userRef = db.collection("users").doc(userId);
       const userQds = await userRef.get();
       const userData = userQds.data();
@@ -124,17 +113,9 @@ exports.createNotificationsForPost = functions.firestore
             payload["notificationLink"] = postId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
-          } else if (placeCity == userFriendData.location && starRating >= 4) {
+          } else if (starRating >= 4) {
             payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
             payload["title"] = `${userData.firstName} just tasted ${placeData.name}`;
-            payload["body"] = `You haven't tasted ${placeData.name} yet - see what they said`;
-            payload["notificationIcon"] = userId;
-            payload["notificationLink"] = postId;
-            functions.logger.log("Creating notification with payload", payload);
-            db.collection("notifications").add(payload);
-          } else if (starRating == 5) {
-            payload["type"] = "FriendTastedFiveStar";
-            payload["title"] = `${userData.firstName} said ${placeData.name} was excellent`;
             payload["body"] = trimmedReview;
             payload["notificationIcon"] = userId;
             payload["notificationLink"] = postId;
