@@ -31,6 +31,26 @@ def calculate_cumulative_growth_metrics(db):
             writer.writerow(fields)
             writer.writerows(rows)
 
+    print('Processing replies...')
+    fields = ['data', 'replies']
+    rows = []
+    start_date = datetime.datetime(2022, 1, 1)
+    end_date = datetime.datetime.now()
+    delta = datetime.timedelta(days=1)
+    while start_date <= end_date:
+        posts = db.collection('posts').where('timestamp', "<=", start_date).get()
+        replies_count = 0
+        for p in posts:
+            print(start_date, p.id)
+            replies = db.collection('posts').document(p.id).collection('replies').where('timestamp', "<=", start_date).get()
+            replies_count += len(replies)
+        rows.append([start_date.date(), replies_count])
+        start_date += delta
+    with open('metrics/replies.csv', 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(fields)
+        writer.writerows(rows)
+
 def calculate_retention(db):
     print('Calculating retention...')
     fields = ['week', 'retention']
