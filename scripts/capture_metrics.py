@@ -69,5 +69,5 @@ if __name__ == '__main__':
             exit(0)
 
     db = firestore.client()
-    # calculate_cumulative_growth_metrics(db)
+    calculate_cumulative_growth_metrics(db)
     calculate_retention(db)
