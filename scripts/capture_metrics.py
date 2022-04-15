@@ -34,7 +34,7 @@ def calculate_cumulative_growth_metrics(db):
     print('Processing replies...')
     fields = ['data', 'replies']
     rows = []
-    start_date = datetime.datetime(2022, 1, 1)
+    start_date = datetime.datetime(2022, 4, 1) # shipped early april
     end_date = datetime.datetime.now()
     delta = datetime.timedelta(days=1)
     while start_date <= end_date:
@@ -55,7 +55,7 @@ def calculate_retention(db):
     print('Calculating retention...')
     fields = ['week', 'retention']
     rows = []
-    week_start = datetime.datetime(2022, 1, 2) # start on sunday
+    week_start = datetime.datetime(2022, 1, 3) # start on monday
     end_date = datetime.datetime.now()
     delta = datetime.timedelta(days=7)
     while week_start <= end_date:
