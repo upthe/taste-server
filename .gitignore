@@ -70,4 +70,4 @@ node_modules/
 secret/
 restore/
 env/
-*.csv
+metrics/

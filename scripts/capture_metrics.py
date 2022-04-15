@@ -26,7 +26,7 @@ def calculate_cumulative_growth_metrics(db):
             posts = db.collection(collection).where(timestamp_field, "<=", start_date).get()
             rows.append([start_date.date(), len(posts)])
             start_date += delta
-        with open(f'{collection}.csv', 'w') as f:
+        with open(f'metrics/{collection}.csv', 'w') as f:
             writer = csv.writer(f)
             writer.writerow(fields)
             writer.writerows(rows)
@@ -46,7 +46,7 @@ def calculate_retention(db):
         retention = float(len(post_unique_user_ids)) / len(user_ids) if len(user_ids) != 0 else 0
         rows.append([week_start.date(), retention])
         week_start += delta
-    with open(f'retention.csv', 'w') as f:
+    with open(f'metrics/retention.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow(fields)
         writer.writerows(rows)
