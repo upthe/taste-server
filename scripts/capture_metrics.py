@@ -41,7 +41,6 @@ def calculate_cumulative_growth_metrics(db):
         posts = db.collection('posts').where('timestamp', "<=", start_date).get()
         replies_count = 0
         for p in posts:
-            print(start_date, p.id)
             replies = db.collection('posts').document(p.id).collection('replies').where('timestamp', "<=", start_date).get()
             replies_count += len(replies)
         rows.append([start_date.date(), replies_count])
