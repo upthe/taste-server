@@ -41,7 +41,7 @@ def calculate_cumulative_growth_metrics(db):
             writer.writerows(rows)
 
     print('Processing "replies" collection...')
-    fields = ['data', 'replies']
+    fields = ['date', 'replies']
     rows = []
     start_date = datetime.datetime(2022, 4, 1) # shipped early april
     end_date = datetime.datetime.now()
