@@ -8,22 +8,31 @@ from firebase_admin import credentials, firestore
 from os import environ
 
 def calculate_cumulative_growth_metrics(db):
-    collections_to_timestamp_fields = {
-        'posts': 'timestamp',
-        'users': 'creationTimestamp',
-        'notifications': 'timestamp'
+    collections_to_query_data = {
+        'posts': {
+            'timestampKey': 'timestamp',
+            'startDate': datetime.datetime(2022, 1, 1)
+        },
+        'users': {
+            'timestampKey': 'creationTimestamp',
+            'startDate': datetime.datetime(2022, 1, 1)
+        },
+        'notifications': {
+            'timestampKey': 'timestamp',
+            'startDate': datetime.datetime(2022, 4, 1)
+        }
     }
 
     print('Calculating cumulative growth metrics...')
-    for collection, timestamp_field in collections_to_timestamp_fields.items():
+    for collection, query_data in collections_to_query_data.items():
         print(f'Processing "{collection}" collection...')
         fields = ['date', collection]
         rows = []
-        start_date = datetime.datetime(2022, 1, 1)
+        start_date = query_data['startDate']
         end_date = datetime.datetime.now()
         delta = datetime.timedelta(days=1)
         while start_date <= end_date:
-            posts = db.collection(collection).where(timestamp_field, "<=", start_date).get()
+            posts = db.collection(collection).where(query_data['timestampKey'], "<=", start_date).get()
             rows.append([start_date.date(), len(posts)])
             start_date += delta
         with open(f'metrics/{collection}.csv', 'w') as f:
@@ -83,9 +92,8 @@ if __name__ == '__main__':
     firebase_admin.initialize_app(credentials)
 
     if not 'FIRESTORE_EMULATOR_HOST' in environ:
-        confirm = input('WARNING: connected to production, type "y" to continue: ')
-        if confirm != "y":
-            exit(0)
+        print('ERROR: you should run this against a local emulator that was restored with the database')
+        exit(1)
 
     db = firestore.client()
     calculate_cumulative_growth_metrics(db)
