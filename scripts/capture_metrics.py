@@ -4,17 +4,25 @@ import csv
 import datetime
 import firebase_admin
 import json
-from firebase_admin import credentials, firestore
+from firebase_admin import auth, credentials, firestore
 from os import environ
 
-def calculate_cumulative_growth_metrics(db):
+def get_user_ids_to_creation_timestamps(db):
+    print('Getting authenticated users...')
+    user_ids_to_creation_timestamps = {}
+    for u in auth.list_users().iterate_all():
+        auth_user = auth.get_user(u.uid)
+        users = db.collection('users').where('phoneNumber', '==', u.phone_number).get()
+        if len(users) != 1:
+            continue
+        epoch_creation_timestamp = auth_user.user_metadata.creation_timestamp / 1000
+        user_ids_to_creation_timestamps[users[0].id] = datetime.datetime.fromtimestamp(epoch_creation_timestamp)
+    return user_ids_to_creation_timestamps
+
+def calculate_cumulative_growth_metrics(db, user_ids_to_creation_timestamps):
     collections_to_query_data = {
         'posts': {
             'timestampKey': 'timestamp',
-            'startDate': datetime.datetime(2022, 1, 1)
-        },
-        'users': {
-            'timestampKey': 'creationTimestamp',
             'startDate': datetime.datetime(2022, 1, 1)
         },
         'notifications': {
@@ -43,7 +51,7 @@ def calculate_cumulative_growth_metrics(db):
     print('Processing "replies" collection...')
     fields = ['date', 'replies']
     rows = []
-    start_date = datetime.datetime(2022, 4, 1) # shipped early april
+    start_date = datetime.datetime(2022, 4, 1) # shipped early April
     end_date = datetime.datetime.now()
     delta = datetime.timedelta(days=1)
     while start_date <= end_date:
@@ -59,16 +67,35 @@ def calculate_cumulative_growth_metrics(db):
         writer.writerow(fields)
         writer.writerows(rows)
 
-def calculate_retention(db):
+    print('Processing authenticated users...')
+    user_creation_timestamps = sorted(user_ids_to_creation_timestamps.values())
+    fields = ['date', 'users']
+    rows = []
+    start_date = datetime.datetime(2022, 1, 15) # shipped mid January
+    end_date = datetime.datetime.now()
+    delta = datetime.timedelta(days=1)
+    index = 0
+    while start_date <= end_date:
+        while user_creation_timestamps[index] < start_date:
+            index += 1
+            if index == len(user_creation_timestamps):
+                break
+        rows.append([start_date.date(), index])
+        start_date += delta
+    with open('metrics/users.csv', 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(fields)
+        writer.writerows(rows)
+
+def calculate_retention(db, user_ids_to_creation_timestamps):
     print('Calculating retention...')
     fields = ['week', 'retention']
     rows = []
-    week_start = datetime.datetime(2022, 1, 3) # start on monday
+    week_start = datetime.datetime(2022, 1, 3) # start on Monday
     end_date = datetime.datetime.now()
     delta = datetime.timedelta(days=7)
     while week_start <= end_date:
-        users = db.collection('users').where('creationTimestamp', '<', week_start + delta).get()
-        user_ids = [u.id for u in users]
+        user_ids = [u for u, ct in user_ids_to_creation_timestamps.items() if ct < week_start + delta]
         posts = db.collection('posts').where('timestamp', '>=', week_start).where('timestamp', '<', week_start + delta).get()
         post_unique_user_ids = list(set([p.get('user').id for p in posts]))
         retention = float(len(post_unique_user_ids)) / len(user_ids) if len(user_ids) != 0 else 0
@@ -96,5 +123,6 @@ if __name__ == '__main__':
         exit(1)
 
     db = firestore.client()
-    calculate_cumulative_growth_metrics(db)
-    calculate_retention(db)
+    user_ids_to_creation_timestamps = get_user_ids_to_creation_timestamps(db)
+    calculate_cumulative_growth_metrics(db, user_ids_to_creation_timestamps)
+    calculate_retention(db, user_ids_to_creation_timestamps)
