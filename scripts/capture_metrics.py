@@ -4,103 +4,107 @@ import csv
 import datetime
 import firebase_admin
 import json
+import pytz
 from firebase_admin import auth, credentials, firestore
 from os import environ
 
-def get_user_ids_to_creation_timestamps(db):
+def get_user_ids_to_data(db):
     print('Getting authenticated users...')
-    user_ids_to_creation_timestamps = {}
+    user_ids_to_data = {}
     for u in auth.list_users().iterate_all():
         auth_user = auth.get_user(u.uid)
         users = db.collection('users').where('phoneNumber', '==', u.phone_number).get()
         if len(users) != 1:
             continue
         epoch_creation_timestamp = auth_user.user_metadata.creation_timestamp / 1000
-        user_ids_to_creation_timestamps[users[0].id] = datetime.datetime.fromtimestamp(epoch_creation_timestamp)
-    return user_ids_to_creation_timestamps
+        user_ids_to_data[users[0].id] = {
+            'timestamp': datetime.datetime.fromtimestamp(epoch_creation_timestamp).replace(tzinfo=pytz.UTC)
+        }
+    return user_ids_to_data
 
-def calculate_cumulative_growth_metrics(db, user_ids_to_creation_timestamps):
+def get_post_ids_to_data(db):
+    print('Getting posts...')
+    post_ids_to_creation_timestamps = {}
+    posts = db.collection('posts').get()
+    for p in posts:
+        post_ids_to_creation_timestamps[p.id] = {
+            'user': p.get('user').id,
+            'timestamp': p.get('timestamp').replace(tzinfo=pytz.UTC)
+        }
+    return post_ids_to_creation_timestamps
+
+def get_reply_ids_to_data(db, post_ids_to_creation_timestamps):
+    print('Getting replies...')
+    reply_ids_to_creation_timestamps = {}
+    for p in post_ids_to_creation_timestamps:
+        replies = db.collection('posts').document(p).collection('replies').get()
+        for r in replies:
+            reply_ids_to_creation_timestamps[r.id] = {
+                'timestamp': r.get('timestamp').replace(tzinfo=pytz.UTC)
+            }
+    return reply_ids_to_creation_timestamps
+
+def get_notification_ids_to_data(db):
+    print('Getting notifications...')
+    notification_ids_to_creation_timestamps = {}
+    notifications = db.collection('notifications').get()
+    for n in notifications:
+        notification_ids_to_creation_timestamps[n.id] = {
+            'timestamp': n.get('timestamp').replace(tzinfo=pytz.UTC)
+        }
+    return notification_ids_to_creation_timestamps
+
+def calculate_cumulative_growth_metrics(db, user_ids_to_data, post_ids_to_creation_timestamps, reply_ids_to_creation_timestamps, notification_ids_to_creation_timestamps):
+    print('Calculating cumulative growth metrics...')
     collections_to_query_data = {
+        'users': {
+            'map': user_ids_to_data,
+            'startDate': datetime.datetime(2022, 1, 17)
+        },
         'posts': {
-            'timestampKey': 'timestamp',
-            'startDate': datetime.datetime(2022, 1, 1)
+            'map': post_ids_to_creation_timestamps,
+            'startDate': datetime.datetime(2022, 1, 17)
+        },
+        'replies': {
+            'map': reply_ids_to_creation_timestamps,
+            'startDate': datetime.datetime(2022, 4, 1)
         },
         'notifications': {
-            'timestampKey': 'timestamp',
+            'map': notification_ids_to_creation_timestamps,
             'startDate': datetime.datetime(2022, 4, 1)
         }
     }
 
-    print('Calculating cumulative growth metrics...')
-    for collection, query_data in collections_to_query_data.items():
-        print(f'Processing "{collection}" collection...')
-        fields = ['date', collection]
+    for collection, data in collections_to_query_data.items():
+        print(f'Processing {collection}...')
+        collection_map = data['map']
+        fields = ['date', f'num_{collection}']
         rows = []
-        start_date = query_data['startDate']
-        end_date = datetime.datetime.now()
+        start_date = data['startDate'].replace(tzinfo=pytz.UTC)
+        end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC)
         delta = datetime.timedelta(days=1)
         while start_date <= end_date:
-            posts = db.collection(collection).where(query_data['timestampKey'], "<=", start_date).get()
-            rows.append([start_date.date(), len(posts)])
+            count = len([k for k, v in collection_map.items() if v['timestamp'] < start_date])
+            rows.append([start_date.date(), count])
             start_date += delta
         with open(f'metrics/{collection}.csv', 'w') as f:
             writer = csv.writer(f)
             writer.writerow(fields)
             writer.writerows(rows)
 
-    print('Processing "replies" collection...')
-    fields = ['date', 'replies']
+def calculate_unique_users_posted_per_week(db, user_ids_to_data, post_ids_to_creation_timestamps):
+    print('Calculating unique users who posted per week...')
+    fields = ['week', 'num_unique_users_who_posted', 'num_users']
     rows = []
-    start_date = datetime.datetime(2022, 4, 1) # shipped early April
-    end_date = datetime.datetime.now()
-    delta = datetime.timedelta(days=1)
-    while start_date <= end_date:
-        posts = db.collection('posts').where('timestamp', "<=", start_date).get()
-        replies_count = 0
-        for p in posts:
-            replies = db.collection('posts').document(p.id).collection('replies').where('timestamp', "<=", start_date).get()
-            replies_count += len(replies)
-        rows.append([start_date.date(), replies_count])
-        start_date += delta
-    with open('metrics/replies.csv', 'w') as f:
-        writer = csv.writer(f)
-        writer.writerow(fields)
-        writer.writerows(rows)
-
-    print('Processing authenticated users...')
-    user_creation_timestamps = sorted(user_ids_to_creation_timestamps.values())
-    fields = ['date', 'users']
-    rows = []
-    start_date = datetime.datetime(2022, 1, 15) # shipped mid January
-    end_date = datetime.datetime.now()
-    delta = datetime.timedelta(days=1)
-    index = 0
-    while start_date <= end_date:
-        while user_creation_timestamps[index] < start_date:
-            index += 1
-            if index == len(user_creation_timestamps):
-                break
-        rows.append([start_date.date(), index])
-        start_date += delta
-    with open('metrics/users.csv', 'w') as f:
-        writer = csv.writer(f)
-        writer.writerow(fields)
-        writer.writerows(rows)
-
-def calculate_retention(db, user_ids_to_creation_timestamps):
-    print('Calculating retention...')
-    fields = ['week', 'retention']
-    rows = []
-    week_start = datetime.datetime(2022, 1, 3) # start on Monday
-    end_date = datetime.datetime.now()
+    start_date = datetime.datetime(2022, 1, 10).replace(tzinfo=pytz.UTC) # start on Monday
+    end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC)
     delta = datetime.timedelta(days=7)
-    while week_start <= end_date:
-        user_ids = [u for u, ct in user_ids_to_creation_timestamps.items() if ct < week_start + delta]
-        posts = db.collection('posts').where('timestamp', '>=', week_start).where('timestamp', '<', week_start + delta).get()
-        post_unique_user_ids = list(set([p.get('user').id for p in posts]))
-        retention = float(len(post_unique_user_ids)) / len(user_ids) if len(user_ids) != 0 else 0
-        rows.append([week_start.date(), retention])
-        week_start += delta
+    while start_date < end_date:
+        users = [u for u, d in user_ids_to_data.items() if d['timestamp'] < start_date + delta]
+        posts = [d for p, d in post_ids_to_creation_timestamps.items() if start_date < d['timestamp'] < start_date + delta]
+        post_unique_user_ids = list(set([p['user'] for p in posts]))
+        rows.append([start_date.date(), len(post_unique_user_ids), len(users)])
+        start_date += delta
     with open(f'metrics/retention.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow(fields)
@@ -123,6 +127,9 @@ if __name__ == '__main__':
         exit(1)
 
     db = firestore.client()
-    user_ids_to_creation_timestamps = get_user_ids_to_creation_timestamps(db)
-    calculate_cumulative_growth_metrics(db, user_ids_to_creation_timestamps)
-    calculate_retention(db, user_ids_to_creation_timestamps)
+    user_ids_to_data = get_user_ids_to_data(db)
+    post_ids_to_creation_timestamps = get_post_ids_to_data(db)
+    reply_ids_to_creation_timestamps = get_reply_ids_to_data(db, post_ids_to_creation_timestamps)
+    notification_ids_to_creation_timestamps = get_notification_ids_to_data(db)
+    calculate_cumulative_growth_metrics(db, user_ids_to_data, post_ids_to_creation_timestamps, reply_ids_to_creation_timestamps, notification_ids_to_creation_timestamps)
+    calculate_unique_users_posted_per_week(db, user_ids_to_data, post_ids_to_creation_timestamps)
