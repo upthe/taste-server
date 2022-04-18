@@ -80,9 +80,9 @@ def calculate_cumulative_growth_metrics(db, user_ids_to_data, post_ids_to_creati
         collection_map = data['map']
         fields = ['date', f'num_{collection}']
         rows = []
-        start_date = data['startDate'].replace(tzinfo=pytz.UTC)
-        end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC)
         delta = datetime.timedelta(days=1)
+        start_date = data['startDate'].replace(tzinfo=pytz.UTC)
+        end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC) - delta
         while start_date <= end_date:
             count = len([k for k, v in collection_map.items() if v['timestamp'] < start_date])
             rows.append([start_date.date(), count])
@@ -96,9 +96,9 @@ def calculate_unique_users_posted_per_week(db, user_ids_to_data, post_ids_to_cre
     print('Calculating unique users who posted per week...')
     fields = ['week', 'num_unique_users_who_posted', 'num_users']
     rows = []
-    start_date = datetime.datetime(2022, 1, 10).replace(tzinfo=pytz.UTC) # start on Monday
-    end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC)
     delta = datetime.timedelta(days=7)
+    start_date = datetime.datetime(2022, 1, 10).replace(tzinfo=pytz.UTC) # start on Monday
+    end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC) - delta
     while start_date < end_date:
         users = [u for u, d in user_ids_to_data.items() if d['timestamp'] < start_date + delta]
         posts = [d for p, d in post_ids_to_creation_timestamps.items() if start_date < d['timestamp'] < start_date + delta]
