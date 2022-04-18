@@ -26,7 +26,8 @@ def parse_friend_graph(friends_path):
 def complete_friend_graph(friend_graph):
     complete_friend_graph = {}
     for user, friends in friend_graph.items():
-        complete_friend_graph[user] = friends
+        current_friends = complete_friend_graph.get(user, set())
+        complete_friend_graph[user] = friends | current_friends
         for friend in friends:
             if friend not in complete_friend_graph:
                 complete_friend_graph[friend] = set()
@@ -68,4 +69,6 @@ if __name__ == '__main__':
     current_user_handles_to_snapshots = get_current_user_handles_to_snapshots(db)
     friend_graph = parse_friend_graph(args.friends_path)
     complete_friend_graph = complete_friend_graph(friend_graph)
+    for user, friends in complete_friend_graph.items():
+        print(user, friends)
     update_friends(db, complete_friend_graph, current_user_handles_to_snapshots)
