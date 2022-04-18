@@ -92,18 +92,18 @@ def calculate_cumulative_growth_metrics(db, user_ids_to_data, post_ids_to_creati
             writer.writerow(fields)
             writer.writerows(rows)
 
-def calculate_unique_users_posted_per_week(db, user_ids_to_data, post_ids_to_creation_timestamps):
-    print('Calculating unique users who posted per week...')
-    fields = ['week', 'num_unique_users_who_posted', 'num_users']
+def calculate_retention_metrics(db, user_ids_to_data, post_ids_to_creation_timestamps):
+    print('Calculating retention metrics...')
+    fields = ['start_week', 'num_unique_users_who_posted', 'num_users', 'num_posts']
     rows = []
     delta = datetime.timedelta(days=7)
-    start_date = datetime.datetime(2022, 1, 10).replace(tzinfo=pytz.UTC) # start on Monday
+    start_date = datetime.datetime(2022, 1, 11).replace(tzinfo=pytz.UTC) # start on Tuesday
     end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC) - delta
     while start_date < end_date:
         users = [u for u, d in user_ids_to_data.items() if d['timestamp'] < start_date + delta]
         posts = [d for p, d in post_ids_to_creation_timestamps.items() if start_date < d['timestamp'] < start_date + delta]
         post_unique_user_ids = list(set([p['user'] for p in posts]))
-        rows.append([start_date.date(), len(post_unique_user_ids), len(users)])
+        rows.append([start_date.date(), len(post_unique_user_ids), len(users), len(posts)])
         start_date += delta
     with open(f'metrics/retention.csv', 'w') as f:
         writer = csv.writer(f)
@@ -132,4 +132,4 @@ if __name__ == '__main__':
     reply_ids_to_creation_timestamps = get_reply_ids_to_data(db, post_ids_to_creation_timestamps)
     notification_ids_to_creation_timestamps = get_notification_ids_to_data(db)
     calculate_cumulative_growth_metrics(db, user_ids_to_data, post_ids_to_creation_timestamps, reply_ids_to_creation_timestamps, notification_ids_to_creation_timestamps)
-    calculate_unique_users_posted_per_week(db, user_ids_to_data, post_ids_to_creation_timestamps)
+    calculate_retention_metrics(db, user_ids_to_data, post_ids_to_creation_timestamps)
