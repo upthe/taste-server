@@ -6,13 +6,6 @@ import json
 from firebase_admin import credentials, firestore
 from os import environ
 
-def get_current_user_handles_to_snapshots(db):
-    current_user_handles_to_snapshots = {}
-    for user_snapshot in db.collection('users').stream():
-        handle = user_snapshot.get('handle')
-        current_user_handles_to_snapshots[handle] = user_snapshot
-    return current_user_handles_to_snapshots
-
 def parse_friend_graph(friends_path):
     friend_graph = {}
     with open(friends_path, 'r') as f:
@@ -34,7 +27,7 @@ def complete_friend_graph(friend_graph):
             complete_friend_graph[friend].add(user)
     return complete_friend_graph
 
-def update_friends(db, complete_friend_graph, current_user_handles_to_snapshots):
+def update_friends(db, complete_friend_graph):
     for user, friends in complete_friend_graph.items():
         print(f'Processing user {user}...')
         query = db.collection('users').where('handle', '==', user).limit(1).get()[0]
@@ -66,7 +59,6 @@ if __name__ == '__main__':
             exit(0)
 
     db = firestore.client()
-    current_user_handles_to_snapshots = get_current_user_handles_to_snapshots(db)
     friend_graph = parse_friend_graph(args.friends_path)
     complete_friend_graph = complete_friend_graph(friend_graph)
-    update_friends(db, complete_friend_graph, current_user_handles_to_snapshots)
+    update_friends(db, complete_friend_graph)
