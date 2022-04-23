@@ -444,6 +444,97 @@ exports.addWantToTaste = functions
       });
     });
 
+// exports.createNotificationsForBatchPosts = functions
+//     .pubsub.schedule("0 21 * * *") // 9:00pm everyday
+//     .timeZone("America/New_York")
+//     .onRun(async (context) => {
+//       functions.logger.log("Starting to process batch posts");
+//       const dayAgoDate = new Date(admin.firestore.Timestamp.now().seconds * 1000 - (24 * 60 * 60 * 1000));
+//       const userIdsToFirstName = {};
+//       const userIdsToNewPlacesTastedIds = {};
+//       const userIdsToFriendIds = {};
+//       const userIdsToTastedPlaceIds = {};
+//       const userIdsToWantToTastePlaceIds = {};
+
+//       const usersSnapshot = await db.collection("users").get();
+//       for (const user of usersSnapshot.docs) {
+//         const userData = user.data();
+//         const userNewPlacesTastedIds = [];
+//         const userFriendIds = [];
+//         const userTastedIds = [];
+//         const userWantToTasteIds = [];
+
+//         const postsSnapshot = await db.collection("posts").where("user", "==", user.ref).where("timestamp", ">=", dayAgoDate).get();
+//         for (const post of postsSnapshot.docs) {
+//           const postData = post.data();
+//           userNewPlacesTastedIds.push(postData["place"].id);
+//         }
+
+//         userData["friends"].forEach((friendRef) => {
+//           userFriendIds.push(friendRef.id);
+//         })
+//         userData["tasted"].forEach((placeRef) => {
+//           userTastedIds.push(placeRef.id);
+//         });
+//         userData["wantToTaste"].forEach((placeRef) => {
+//           userWantToTasteIds.push(placeRef.id);
+//         });
+
+//         userIdsToFirstName[user.id] = userData["firstName"];
+//         userIdsToNewPlacesTastedIds[user.id] = userNewPlacesTastedIds;
+//         userIdsToTastedPlaceIds[user.id] = userTastedIds;
+//         userIdsToWantToTastePlaceIds[user.id] = userWantToTasteIds;
+//         userIdsToFriendIds[user.id] = userFriendIds;
+//       }
+
+//       Object.keys(userIdsToNewPlacesTastedIds).forEach((userId) => {
+//         const newPlacesTastedIds = new Set([...userIdsToNewPlacesTastedIds[userId]]);
+//         if (newPlacesTastedIds.size == 0) {
+//           return;
+//         }
+
+//         const userFirstName = userIdsToFirstName[userId];
+//         const userFriendIds = userIdsToFriendIds[userId];
+//         for (const userFriendId of userFriendIds) {
+//           const friendTastedIds = new Set([...userIdsToTastedPlaceIds[userFriendId]]);
+//           const friendWantToTasteIds = new Set([...userIdsToWantToTastePlaceIds[userFriendId]]);
+//           const relevantPlaceIds = new Set([...newPlacesTastedIds].filter(p => !friendTastedIds.has(p)).filter(p => !friendWantToTasteIds.has(p)));
+//           if (relevantPlaceIds.size < 2) {
+//             continue;
+//           }
+
+//           const title = `${userFirstName} tasted ${relevantPlaceIds.size} ${relevantPlaceIds.size == 1 ? "place" : "places"} in the last day`;
+//           const body = `You haven't heard of ${relevantPlaceIds.size == 1 ? "this place" : "these places"} - go to their profile to check ${relevantPlaceIds.size == 1 ? "it" : "them"} out`;
+//           functions.logger.log(userIdsToFirstName[userFriendId]);
+//           functions.logger.log(title);
+//           functions.logger.log(body);
+//           functions.logger.log();
+
+//           payload = {
+//             ownerId: userFriendId,
+//             type: "FriendTastedPlacesYouDoNotKnow",
+//             title: title,
+//             body: body,
+//             notificationIcon: userId,
+//             notificationLink: userId,
+//             seen: false,
+//             timestamp: admin.firestore.Timestamp.now(),
+//           }
+//           // functions.logger.log(payload);
+//           // db.collection("notifications").add({
+//           //   ownerId: userFriendId,
+//           //   type: "FriendTastedPlacesYouDoNotKnow",
+//           //   title: `${userFirstName} tasted ${relevantPlaceIds.size} ${relevantPlaceIds.size == 1 ? "place" : "places"} in the last day`,
+//           //   body: "You haven't heard of these places - go to their profile to check them out",
+//           //   notificationIcon: userId,
+//           //   notificationLink: userId,
+//           //   seen: false,
+//           //   timestamp: admin.firestore.Timestamp.now(),
+//           // });
+//         }
+//       });
+//     });
+
 // // TEMP: keeping this around for now
 // exports.createPost = functions
 //     .pubsub.schedule("0 */6 * * *") // Every 6 hours
