@@ -112,9 +112,9 @@ exports.createNotificationsForPost = functions.firestore
             payload["notificationLink"] = postId;
             functions.logger.log("Creating notification with payload", payload);
             db.collection("notifications").add(payload);
-          } else if (starRating >= 4) {
+          } else if (starRating == 5) {
             payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
-            payload["title"] = `${userData.firstName} just tasted ${placeData.name}`;
+            payload["title"] = `${userData.firstName} said ${placeData.name} was excellent`;
             payload["body"] = trimmedReview;
             payload["notificationIcon"] = userId;
             payload["notificationLink"] = postId;
@@ -422,23 +422,40 @@ exports.addWantToTaste = functions
         const userFriendData = userFriendQds.data();
 
         const userFriendTastedIds = [];
+        const userFriendWantToTasteIds = [];
         userFriendData.tasted.forEach((place) => {
           userFriendTastedIds.push(place.id);
         });
-        if (!userFriendTastedIds.includes(placeId)) {
-          return;
+        userFriendData.wantToTaste.forEach((place) => {
+          userFriendWantToTasteIds.push(place.id);
+        });
+
+        if (userFriendTastedIds.includes(placeId)) {
+          const userFriendPostRef = db.collection("posts").where("user", "==", userFriendRef).where("place", "==", placeRef).orderBy("timestamp", "desc").limit(1);
+          const userFriendPostQds = await userFriendPostRef.get();
+          const userFriendPostData = userFriendPostQds.docs[0].data();
+          if (userFriendPostData.starRating >= 4) {
+            functions.logger.log("Creating notification for FriendWantsToTastePlaceYouTasted, dumping userData.handle, userFriendData.handle, placeData.name, placeId", userData.handle, userFriendData.handle, placeData.name, placeId);
+            db.collection("notifications").add({
+              ownerId: userFriend.id,
+              type: "FriendWantsToTastePlaceYouTasted",
+              title: `${userData.firstName} wants to taste ${placeData.name}`,
+              body: "Your taste helped them discover this place - keep it up",
+              notificationIcon: userId,
+              notificationLink: placeId,
+              seen: false,
+              timestamp: admin.firestore.Timestamp.now(),
+            });
+          }
         }
 
-        const userFriendPostRef = db.collection("posts").where("user", "==", userFriendRef).where("place", "==", placeRef).orderBy("timestamp", "desc").limit(1);
-        const userFriendPostQds = await userFriendPostRef.get();
-        const userFriendPostData = userFriendPostQds.docs[0].data();
-        if (userFriendPostData.starRating >= 4) {
-          functions.logger.log("Creating notification, dumping userData.handle, userFriendData.handle, placeData.name, placeId", userData.handle, userFriendData.handle, placeData.name, placeId);
+        if (userFriendWantToTasteIds.includes(placeId)) {
+          functions.logger.log("Creating notification for FriendWantsToTastePlaceYouWantToTaste, dumping userData.handle, userFriendData.handle, placeData.name, placeId", userData.handle, userFriendData.handle, placeData.name, placeId);
           db.collection("notifications").add({
             ownerId: userFriend.id,
-            type: "FriendWantsToTaste",
-            title: `${userData.firstName} wants to taste ${placeData.name}`,
-            body: "Your taste helped them discover this place - keep it up",
+            type: "FriendWantsToTastePlaceYouWantToTaste",
+            title: `${userData.firstName} just said they want to taste ${placeData.name}`,
+            body: `You also want to taste ${placeData.name} - maybe you can go with them?`,
             notificationIcon: userId,
             notificationLink: placeId,
             seen: false,
