@@ -244,8 +244,12 @@ exports.clearStreaks = functions
       return db.collection("users").get().then((snapshot) => {
         snapshot.docs.forEach((user) => {
           db.collection("posts").where("user", "==", user.ref).orderBy("timestamp", "desc").limit(1).get().then((snapshot) => {
-            const latestPost = snapshot.docs[0];
-            const latestPostTimestamp = latestPost.data()["timestamp"];
+            if (snapshot.docs.length == 0) {
+              return;
+            }
+
+            const latestPostSnapshot = snapshot.docs[0];
+            const latestPostTimestamp = latestPostSnapshot.data()["timestamp"];
             const diffDays = (now - latestPostTimestamp) / 60 / 60 / 24;
             if (diffDays > 7) {
               functions.logger.log("Clearing streak for user", user.id);
