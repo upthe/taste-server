@@ -465,6 +465,42 @@ exports.addWantToTaste = functions
       });
     });
 
+exports.addPostReaction = functions
+    .https.onCall(async (data, context) => {
+      functions.logger.log("Starting to process post reaction");
+      const userId = data.userId;
+      const postId = data.postId;
+      const emojiCode = parseInt(data.emojiCode);
+
+      const emojiHex = emojiCode.toString(16);
+      const emojiString = String.fromCodePoint(parseInt(emojiHex, 16));
+
+      const userRef = db.collection("users").doc(userId);
+      const userQds = await userRef.get();
+      const userData = userQds.data();
+
+      const postRef = db.collection("posts").doc(postId);
+      const postQds = await postRef.get();
+      const postData = postQds.data();
+
+      const postPlaceQds = await postData.place.get();
+      const postPlaceData = postPlaceQds.data();
+      const placeName = postPlaceData.name;
+
+      const payload = {
+        ownerId: postData.user.id,
+        type: "UserReactedToTaste",
+        title: `${userData.firstName} reacted ${emojiString} to your taste`,
+        body: `They reacted to your taste of ${placeName}`,
+        notificationIcon: userId,
+        notificationLink: postId,
+        seen: false,
+        timestamp: admin.firestore.Timestamp.now(),
+      };
+      functions.logger.log("Creating notification with payload", payload);
+      db.collection("notifications").add(payload);
+    });
+
 // exports.createNotificationsForBatchPosts = functions
 //     .pubsub.schedule("0 21 * * *") // 9:00pm everyday
 //     .timeZone("America/New_York")
