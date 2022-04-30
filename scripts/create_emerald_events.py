@@ -261,6 +261,11 @@ def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_dat
     return events
 
 def output_events(events):
+    # save json
+    with open('tmp/events.json', 'w') as f:
+        f.write(json.dumps(events, default=str))
+
+    # save csv
     fields = ['user', 'type', 'timestamp', 'post', 'place', 'user']
     rows = []
     for e in events:
