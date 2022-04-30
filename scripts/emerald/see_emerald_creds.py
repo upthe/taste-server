@@ -59,16 +59,8 @@ def _get_event_ids_to_data(db):
         event_ids_to_data[e.id] = event_dict
     return event_ids_to_data
 
-def see_user_creds(user_ids_to_data, place_ids_to_data, post_ids_to_data, event_ids_to_data, handle):
+def see_user_creds(user_ids_to_data, place_ids_to_data, post_ids_to_data, event_ids_to_data, event_type_to_creds, handle):
     print(f'Getting user creds for "{handle}"...')
-    event_type_to_creds = {
-        'UserPostedTaste': 1,
-        'UserTastedPlaceFirst': 2,
-        'FriendWantsToTastePlaceYouTasted': 3,
-        'FriendTastedPlaceYouTasted': 4,
-        'FriendLikedPlaceYouTasted': 5
-    }
-
     users = [d for u, d in user_ids_to_data.items() if d['handle'] == f'{handle}']
     if len(users) != 1:
         print(f'ERROR: cannot find user with handle {handle} or found multiple')
@@ -122,10 +114,22 @@ def see_user_creds(user_ids_to_data, place_ids_to_data, post_ids_to_data, event_
             print(f'Awarding {creds} creds for getting friend "{friend["handle"]}" to like "{place["name"]}"...')
     print(f'Total creds: {total_creds}')
 
+def get_user_ids_to_creds_tuples(user_ids_to_data, event_ids_to_data, event_type_to_creds):
+    user_ids_to_creds_tuples = []
+    for u in user_ids_to_data:
+        print(f'Processing user {u}...')
+        creds = 0
+        events = [e for _, e in event_ids_to_data.items() if e['user'] == u]
+        for event in events:
+            event_type = event['type']
+            creds += event_type_to_creds[event_type]
+        user_ids_to_creds_tuples.append((u, creds))
+    return user_ids_to_creds_tuples
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--cert-path', type=str, required=True)
-    parser.add_argument('--user-handle', type=str, required=True)
+    parser.add_argument('--user-handle', type=str, required=False)
     args = parser.parse_args()
 
     token_dict = None
@@ -146,4 +150,20 @@ if __name__ == '__main__':
     place_ids_to_data = _get_place_ids_to_data(db)
     post_ids_to_data = _get_post_ids_to_data(db)
     event_ids_to_data = _get_event_ids_to_data(db)
-    see_user_creds(user_ids_to_data, place_ids_to_data, post_ids_to_data, event_ids_to_data, args.user_handle)
+
+    event_type_to_creds = {
+        'UserPostedTaste': 1,
+        'UserTastedPlaceFirst': 2,
+        'FriendWantsToTastePlaceYouTasted': 3,
+        'FriendTastedPlaceYouTasted': 4,
+        'FriendLikedPlaceYouTasted': 5
+    }
+    if args.user_handle:
+        see_user_creds(user_ids_to_data, place_ids_to_data, post_ids_to_data, event_ids_to_data, event_type_to_creds, args.user_handle)
+    else:
+        user_ids_to_creds_tuples = get_user_ids_to_creds_tuples(user_ids_to_data, event_ids_to_data, event_type_to_creds)
+        user_ids_to_creds_tuples = sorted(user_ids_to_creds_tuples, key=lambda t: t[1], reverse=True)
+        for i in range(0, 20):
+            user_id_to_creds_tuple = user_ids_to_creds_tuples[i]
+            user = user_ids_to_data[user_id_to_creds_tuple[0]]
+            print(f'{i + 1}. {user["handle"]} - {user_id_to_creds_tuple[1]}')
