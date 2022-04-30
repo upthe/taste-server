@@ -73,11 +73,6 @@ def _get_queue_post_ids_to_data(db, post_ids_to_data):
         }
     return queue_post_ids_to_data
 
-    # queue_posts_ids = [p.get('postId') for p in db.collection('queueposts').stream()]
-    # return {
-    #     p: post_ids_to_data[p] for p in post_ids_to_data if p in queue_posts_ids
-    # }
-
 def _get_queue_want_to_taste_ids_to_data(db):
     print('Getting want to taste queue...')
     queue_want_to_taste_ids_to_data = {}
@@ -103,8 +98,21 @@ def _get_place_ids_to_post_data(post_ids_to_data):
             place_ids_to_post_data[place_id] = [post_data]
     return place_ids_to_post_data
 
+def _get_place_ids_to_queue_post_data(post_ids_to_data, queue_post_ids_to_data):
+    print('Getting place IDs to queue post data...')
+    place_ids_to_queue_post_data = {}
+    for queue_post_id, queue_post_data in queue_post_ids_to_data.items():
+        post_id = queue_post_data['postId']
+        post_data = post_ids_to_data[post_id]
+        place_id = post_data['place']
+        if place_id in place_ids_to_queue_post_data:
+            place_ids_to_queue_post_data[place_id].append(post_data)
+        else:
+            place_ids_to_queue_post_data[place_id] = [post_data]
+    return place_ids_to_queue_post_data
+
 def _get_place_ids_to_want_to_taste_data(place_ids_to_data, queue_want_to_taste_ids_to_data):
-    print('Getting place IDs to want to taste data...')
+    print('Getting place IDs to queue want to taste data...')
     place_ids_to_want_to_taste_data = {}
     for p in place_ids_to_data.keys():
         place_ref = db.collection('places').document(p)
@@ -138,8 +146,7 @@ def create_events_for_user_posted_taste(post_ids_to_data, queue_post_ids_to_data
 
 # create 'UserTastedPlaceFirst' events whenever a user posts a taste that is
 # the first taste of that place within their friend graph
-# TODO: handle post queue
-def create_events_for_user_tasted_place_first(place_ids_to_post_data, queue_post_ids_to_data, user_ids_to_data):
+def create_events_for_user_tasted_place_first(place_ids_to_post_data, place_ids_to_queue_post_data, user_ids_to_data):
     print('Creating events for users tasting place first...')
     events = []
     for place_id, place_post_data in place_ids_to_post_data.items():
@@ -151,17 +158,20 @@ def create_events_for_user_tasted_place_first(place_ids_to_post_data, queue_post
                 continue
             sanitized_place_post_data.append(p)
 
-        place_users = [p['user'] for p in sanitized_place_post_data]
-        for place_user in place_users:
-            user_friend_ids = user_ids_to_data[place_user]['friends']
-            place_posts_filtered = [p for p in sanitized_place_post_data if p['user'] in user_friend_ids or p['user'] == place_user]
+        queue_post_data = place_ids_to_queue_post_data.get(place_id, [])
+        for queue_post in queue_post_data:
+            if queue_post not in sanitized_place_post_data:
+                continue
+            user = queue_post['user']
+            user_friend_ids = user_ids_to_data[user]['friends']
+            place_posts_filtered = [p for p in sanitized_place_post_data if p['user'] in user_friend_ids or p['user'] == user]
             place_first_post_for_friends = place_posts_filtered[0]
             # prevent creating event for same person in multiple friend graphs
-            if place_first_post_for_friends['user'] != place_user:
+            if place_first_post_for_friends['user'] != user:
                 continue
             events.append({
                 'type': 'UserTastedPlaceFirst',
-                'user': place_user,
+                'user': user,
                 'data': {
                     'post': place_first_post_for_friends['id']
                 },
@@ -205,14 +215,12 @@ def create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_d
                 })
     return events
 
-
 # create 'FriendTastedPlaceYouTasted' events whenever a user's friend tastes
 # a place that the user tasted if the user's taste is at least 3 stars and the
 # friend's taste is either 3 or 4 stars; create 'FriendLikedPlaceYouTasted'
 # whenever a user's friend tastes a place that the user tasted if the user's
 # taste is at least 3 stars and the friend's taste is 5 stars
-# TODO: handle post queue
-def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_data, post_ids_to_data, user_ids_to_data):
+def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_data, place_ids_to_queue_post_data, user_ids_to_data):
     print('Creating events for friends tasting/liking places...')
     events = []
     for place_id, place_post_data in place_ids_to_post_data.items():
@@ -225,25 +233,28 @@ def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_dat
                 continue
             sanitized_place_post_data.append(p)
 
-        place_users_to_ranks = [(p['id'], p['user'], p['starRating']) for p in sanitized_place_post_data]
-        for i in range(len(place_users_to_ranks) - 1):
-            curr_post_id = place_users_to_ranks[i][0]
-            curr_user_id = place_users_to_ranks[i][1]
-            curr_user_friends = user_ids_to_data[curr_user_id]['friends']
-            for j in range(i + 1, len(place_users_to_ranks)):
-                comp_post_id = place_users_to_ranks[j][0]
-                comp_user_id = place_users_to_ranks[j][1]
-                comp_star_rating = place_users_to_ranks[j][2]
-                if comp_user_id not in curr_user_friends:
+        queue_post_data = place_ids_to_queue_post_data.get(place_id, [])
+        for queue_post in queue_post_data:
+            if queue_post not in sanitized_place_post_data:
+                continue
+            post_id = queue_post['id']
+            user_id = queue_post['user']
+            star_rating = queue_post['starRating']
+            friends = user_ids_to_data[user_id]['friends']
+            index = sanitized_place_post_data.index(queue_post)
+            for i in range(index):
+                comp = sanitized_place_post_data[i]
+                comp_user_id = comp['user']
+                if comp_user_id not in friends:
                     continue
                 payload = {
-                    'user': curr_user_id,
+                    'user': comp_user_id,
                     'data': {
-                        'post': comp_user_id
+                        'post': post_id
                     },
                     'timestamp': datetime.datetime.now()
                 }
-                if comp_star_rating == 5:
+                if star_rating == 5:
                     events.append({**{'type': 'FriendLikedPlaceYouTasted'}, **payload})
                 else:
                     events.append({**{'type': 'FriendTastedPlaceYouTasted'}, **payload})
@@ -314,15 +325,16 @@ if __name__ == '__main__':
 
     # create maps based on places
     place_ids_to_post_data = _get_place_ids_to_post_data(post_ids_to_data)
+    place_ids_to_queue_post_data = _get_place_ids_to_queue_post_data(post_ids_to_data, queue_post_ids_to_data)
     place_ids_to_want_to_taste_data = _get_place_ids_to_want_to_taste_data(place_ids_to_data, queue_want_to_taste_ids_to_data)
 
     # create events
     events = []
     events.extend(create_events_for_user_posted_taste(post_ids_to_data, queue_post_ids_to_data))
-    events.extend(create_events_for_user_tasted_place_first(place_ids_to_post_data, queue_post_ids_to_data, user_ids_to_data))
+    events.extend(create_events_for_user_tasted_place_first(place_ids_to_post_data, place_ids_to_queue_post_data, user_ids_to_data))
     events.extend(create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_data, place_ids_to_want_to_taste_data, post_ids_to_data, user_ids_to_data))
-    events.extend(create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_data, post_ids_to_data, user_ids_to_data))
+    events.extend(create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_data, place_ids_to_queue_post_data, user_ids_to_data))
 
     output_events(events)
     # publish_events(db, events)
-    # clear_queues(db, queue_post_ids_to_data, queue_want_to_taste_ids_to_data)
+    clear_queues(db, queue_post_ids_to_data, queue_want_to_taste_ids_to_data)
