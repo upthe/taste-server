@@ -15,6 +15,7 @@ def _get_user_ids_to_data(db):
     for u in users:
         user_dict = u.to_dict()
         user_ids_to_data[u.id] = {
+            'id': u.id,
             'firstName': user_dict.get('firstName'),
             'lastName': user_dict.get('lastName'),
             'handle': user_dict.get('handle'),
@@ -22,6 +23,32 @@ def _get_user_ids_to_data(db):
             'friends': [f.id for f in user_dict.get('friends')]
         }
     return user_ids_to_data
+
+def _get_place_ids_to_data(db):
+    print('Getting places...')
+    place_ids_to_data = {}
+    places = db.collection('places').stream()
+    for p in places:
+        place_dict = p.to_dict()
+        place_ids_to_data[p.id] = {
+            'id': p.id,
+            'name': place_dict.get('name')
+        }
+    return place_ids_to_data
+
+def _get_post_ids_to_data(db):
+    print('Getting posts...')
+    post_ids_to_data = {}
+    posts = db.collection('posts').stream()
+    for p in posts:
+        post_data = p.to_dict()
+        post_ids_to_data[p.id] = {
+            'user': post_data.get('user').id,
+            'place': post_data.get('place').id,
+            'starRating': post_data.get('starRating'),
+            'timestamp': post_data.get('timestamp')
+        }
+    return post_ids_to_data
 
 def _get_event_ids_to_data(db):
     print('Getting events...')
@@ -32,8 +59,52 @@ def _get_event_ids_to_data(db):
         event_ids_to_data[e.id] = event_dict
     return event_ids_to_data
 
-def see_user_creds(db, user_ids_to_data, event_ids_to_data):
-    print('Getting user creds...')
+def see_user_creds(user_ids_to_data, place_ids_to_data, post_ids_to_data, event_ids_to_data, handle):
+    print(f'Getting user creds for "{handle}"...')
+    users = [d for u, d in user_ids_to_data.items() if d['handle'] == f'{handle}']
+    if len(users) != 1:
+        print(f'ERROR: cannot find user with handle {handle} or found multiple')
+        exit(1)
+    user = users[0]
+    events = [d for e, d in event_ids_to_data.items() if d['user'] == user['id']]
+    events = sorted(events, key=lambda e: e['timestamp'])
+    for e in events:
+        event_type = e['type']
+        event_data = e['data']
+        if event_type == 'UserPostedTaste':
+            post_id = event_data['post']
+            post = post_ids_to_data[post_id]
+            place_id = post['place']
+            place = place_ids_to_data[place_id]
+            print(f'Awarding creds for tasting "{place["name"]}"...')
+        elif event_type == 'UserTastedPlaceFirst':
+            post_id = event_data['post']
+            post = post_ids_to_data[post_id]
+            place_id = post['place']
+            place = place_ids_to_data[place_id]
+            print(f'Awarding creds for first taste on "{place["name"]}"...')
+        elif event_type == 'FriendWantsToTastePlaceYouTasted':
+            place_id = event_data['place']
+            place = place_ids_to_data[place_id]
+            friend_id = event_data['user']
+            friend = user_ids_to_data[friend_id]
+            print(f'Awarding creds for getting friend "{friend["handle"]}" to want to taste "{place["name"]}"...')
+        elif event_type == 'FriendTastedPlaceYouTasted':
+            post_id = event_data['post']
+            post = post_ids_to_data[post_id]
+            place_id = post['place']
+            place = place_ids_to_data[place_id]
+            friend_id = post['user']
+            friend = user_ids_to_data[friend_id]
+            print(f'Awarding creds for getting friend "{friend["handle"]}" to taste "{place["name"]}"...')
+        elif event_type == 'FriendLikedPlaceYouTasted':
+            post_id = event_data['post']
+            post = post_ids_to_data[post_id]
+            place_id = post['place']
+            place = place_ids_to_data[place_id]
+            friend_id = post['user']
+            friend = user_ids_to_data[friend_id]
+            print(f'Awarding creds for getting friend "{friend["handle"]}" to like "{place["name"]}"...')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -56,6 +127,7 @@ if __name__ == '__main__':
     db = firestore.client()
 
     user_ids_to_data = _get_user_ids_to_data(db)
+    place_ids_to_data = _get_place_ids_to_data(db)
+    post_ids_to_data = _get_post_ids_to_data(db)
     event_ids_to_data = _get_event_ids_to_data(db)
-    see_user_creds(user_ids_to_data, event_ids_to_data, args.user_handle)
-
+    see_user_creds(user_ids_to_data, place_ids_to_data, post_ids_to_data, event_ids_to_data, args.user_handle)
