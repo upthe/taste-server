@@ -336,5 +336,5 @@ if __name__ == '__main__':
     events.extend(create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_data, place_ids_to_queue_post_data, user_ids_to_data))
 
     output_events(events)
-    # publish_events(db, events)
+    publish_events(db, events)
     clear_queues(db, queue_post_ids_to_data, queue_want_to_taste_ids_to_data)
