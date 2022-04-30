@@ -61,50 +61,66 @@ def _get_event_ids_to_data(db):
 
 def see_user_creds(user_ids_to_data, place_ids_to_data, post_ids_to_data, event_ids_to_data, handle):
     print(f'Getting user creds for "{handle}"...')
+    event_type_to_creds = {
+        'UserPostedTaste': 1,
+        'UserTastedPlaceFirst': 2,
+        'FriendWantsToTastePlaceYouTasted': 3,
+        'FriendTastedPlaceYouTasted': 4,
+        'FriendLikedPlaceYouTasted': 5
+    }
+
     users = [d for u, d in user_ids_to_data.items() if d['handle'] == f'{handle}']
     if len(users) != 1:
         print(f'ERROR: cannot find user with handle {handle} or found multiple')
         exit(1)
     user = users[0]
+    total_creds = 0
     events = [d for e, d in event_ids_to_data.items() if d['user'] == user['id']]
     events = sorted(events, key=lambda e: e['timestamp'])
     for e in events:
         event_type = e['type']
         event_data = e['data']
+        creds = event_type_to_creds[event_type]
         if event_type == 'UserPostedTaste':
+            total_creds += creds
             post_id = event_data['post']
             post = post_ids_to_data[post_id]
             place_id = post['place']
             place = place_ids_to_data[place_id]
-            print(f'Awarding creds for tasting "{place["name"]}"...')
+            print(f'Awarding {creds} creds for tasting "{place["name"]}"...')
         elif event_type == 'UserTastedPlaceFirst':
+            total_creds += creds
             post_id = event_data['post']
             post = post_ids_to_data[post_id]
             place_id = post['place']
             place = place_ids_to_data[place_id]
-            print(f'Awarding creds for first taste on "{place["name"]}"...')
+            print(f'Awarding {creds} creds for first taste on "{place["name"]}"...')
         elif event_type == 'FriendWantsToTastePlaceYouTasted':
+            total_creds += creds
             place_id = event_data['place']
             place = place_ids_to_data[place_id]
             friend_id = event_data['user']
             friend = user_ids_to_data[friend_id]
-            print(f'Awarding creds for getting friend "{friend["handle"]}" to want to taste "{place["name"]}"...')
+            print(f'Awarding {creds} creds for getting friend "{friend["handle"]}" to want to taste "{place["name"]}"...')
         elif event_type == 'FriendTastedPlaceYouTasted':
+            total_creds += creds
             post_id = event_data['post']
             post = post_ids_to_data[post_id]
             place_id = post['place']
             place = place_ids_to_data[place_id]
             friend_id = post['user']
             friend = user_ids_to_data[friend_id]
-            print(f'Awarding creds for getting friend "{friend["handle"]}" to taste "{place["name"]}"...')
+            print(f'Awarding {creds} creds for getting friend "{friend["handle"]}" to taste "{place["name"]}"...')
         elif event_type == 'FriendLikedPlaceYouTasted':
+            total_creds += creds
             post_id = event_data['post']
             post = post_ids_to_data[post_id]
             place_id = post['place']
             place = place_ids_to_data[place_id]
             friend_id = post['user']
             friend = user_ids_to_data[friend_id]
-            print(f'Awarding creds for getting friend "{friend["handle"]}" to like "{place["name"]}"...')
+            print(f'Awarding {creds} creds for getting friend "{friend["handle"]}" to like "{place["name"]}"...')
+    print(f'Total creds: {total_creds}')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
