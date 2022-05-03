@@ -134,13 +134,14 @@ def create_events_for_user_posted_taste(post_ids_to_data, queue_post_ids_to_data
     events = []
     for queue_post_id, queue_post_data in queue_post_ids_to_data.items():
         post_id = queue_post_data.get('postId')
+        post = post_ids_to_data[post_id]
         events.append({
             'type': 'UserPostedTaste',
-            'user': post_ids_to_data[post_id]['user'],
+            'user': post['user'],
             'data': {
                 'post': post_id
             },
-            'timestamp': datetime.datetime.now()
+            'timestamp': post["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
         })
     return events
 
@@ -175,7 +176,7 @@ def create_events_for_user_tasted_place_first(place_ids_to_post_data, place_ids_
                 'data': {
                     'post': place_first_post_for_friends['id']
                 },
-                'timestamp': datetime.datetime.now()
+                'timestamp': place_first_post_for_friends["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
             })
     return events
 
@@ -211,7 +212,7 @@ def create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_d
                         'place': place_id,
                         'user': user_id
                     },
-                    'timestamp': datetime.datetime.now()
+                    'timestamp': place_want_to_taste["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
                 })
     return events
 
@@ -252,7 +253,7 @@ def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_dat
                     'data': {
                         'post': post_id
                     },
-                    'timestamp': datetime.datetime.now()
+                    'timestamp': queue_post["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
                 }
                 if star_rating == 5:
                     events.append({**{'type': 'FriendLikedPlaceYouTasted'}, **payload})
@@ -291,6 +292,7 @@ def output_events(events):
 def publish_events(db, events):
     print('Publishing events...')
     for event in events:
+        print('Creating event', event)
         db.collection('events').add(event)
 
 def clear_queues(db, queue_post_ids_to_data, queue_want_to_taste_ids_to_data):
