@@ -31,6 +31,15 @@ def replace_places(target_id, remove_ids):
     for remove_id in remove_ids:
         remove_place = db.collection('places').document(remove_id)
 
+        # Updated 'place' fields of 'queuewanttotastes'
+        queue_want_to_tastes = db.collection('queuewanttotastes').where('place', '==', remove_place).stream()
+        for w in queue_want_to_tastes:
+            print(f'Updating queue want to taste {w.id}...')
+            want_to_taste = db.collection('queuewanttotastes').document(w.id)
+            want_to_taste.update({
+                'place': target_place
+            })
+
         # Update 'tasted' fields of users
         users = db.collection('users').where('tasted', 'array_contains', remove_place).stream()
         for u in users:
