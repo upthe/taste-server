@@ -37,6 +37,11 @@ exports.createNotificationsForPost = functions.firestore
       const userId = data["user"]["_path"]["segments"][1];
       const placeId = data["place"]["_path"]["segments"][1];
 
+      // Create document in 'queueposts' collection
+      await db.collection("queueposts").add({
+        postId: postId,
+      });
+
       const starRating = data.starRating;
       const review = data.review;
       const trimmedReview = review.trim();
@@ -416,6 +421,13 @@ exports.addWantToTaste = functions
       const placeQds = await placeRef.get();
       const placeData = placeQds.data();
 
+      // Create document in 'queuewanttotastes' collection
+      await db.collection("queuewanttotastes").add({
+        user: userRef,
+        place: placeRef,
+        timestamp: admin.firestore.Timestamp.now(),
+      });
+
       const userFriends = await db.collection("users").where("friends", "array-contains", userRef).get();
       userFriends.forEach(async (userFriend) => {
         const userFriendRef = db.collection("users").doc(userFriend.id);
@@ -503,98 +515,98 @@ exports.addPostReaction = functions
       db.collection("notifications").add(payload);
     });
 
-// Triggered every week so we can figure out which users are Taste Emerald
-exports.setEmeraldUsers = functions
-    .runWith({
-      timeoutSeconds: 300,
-    })
-    .pubsub.schedule("0 20 * * 2") // 8:00pm on Tuesdays
-    .timeZone("America/New_York")
-    .onRun(async (context) => {
-      functions.logger.log("Starting to process setting Taste Emerald users");
-      const userIdsToEmeraldCredsTuples = [];
-      const curEmeraldUserIds = [];
+// // Triggered every week so we can figure out which users are Taste Emerald
+// exports.setEmeraldUsers = functions
+//     .runWith({
+//       timeoutSeconds: 300,
+//     })
+//     .pubsub.schedule("0 20 * * 2") // 8:00pm on Tuesdays
+//     .timeZone("America/New_York")
+//     .onRun(async (context) => {
+//       functions.logger.log("Starting to process setting Taste Emerald users");
+//       const userIdsToEmeraldCredsTuples = [];
+//       const curEmeraldUserIds = [];
 
-      const userCollection = db.collection("users");
-      const userCollectionQds = await userCollection.get();
-      const userCollectionDocs = userCollectionQds.docs;
-      const userIdsToUserData = {};
-      for (const userDoc of userCollectionDocs) {
-        const userData = userDoc.data();
-        userIdsToUserData[userDoc.id] = userData;
-        if (userData.emeraldCreds) {
-          userIdsToEmeraldCredsTuples.push([userDoc.id, userData.emeraldCreds]);
-        } else {
-          userIdsToEmeraldCredsTuples.push([userDoc.id, 0]);
-        }
-        if (userData.emerald) {
-          curEmeraldUserIds.push(userDoc.id);
-        }
-      }
+//       const userCollection = db.collection("users");
+//       const userCollectionQds = await userCollection.get();
+//       const userCollectionDocs = userCollectionQds.docs;
+//       const userIdsToUserData = {};
+//       for (const userDoc of userCollectionDocs) {
+//         const userData = userDoc.data();
+//         userIdsToUserData[userDoc.id] = userData;
+//         if (userData.emeraldCreds) {
+//           userIdsToEmeraldCredsTuples.push([userDoc.id, userData.emeraldCreds]);
+//         } else {
+//           userIdsToEmeraldCredsTuples.push([userDoc.id, 0]);
+//         }
+//         if (userData.emerald) {
+//           curEmeraldUserIds.push(userDoc.id);
+//         }
+//       }
 
-      userIdsToEmeraldCredsTuples.sort(function(i, j) {
-        return j[1] - i[1];
-      });
-      userIdsToEmeraldCredsTuples.slice(0, userIdsToEmeraldCredsTuples.length * 0.1);
-      const newEmeraldUserIds = [];
-      // FUTURE: we might be arbitrarily picking someone if there's a tie, should probably handle this
-      for (const userIdToEmeraldCredsTuple of userIdsToEmeraldCredsTuples.slice(0, userIdsToEmeraldCredsTuples.length * 0.1)) {
-        newEmeraldUserIds.push(userIdToEmeraldCredsTuple[0]);
-      }
+//       userIdsToEmeraldCredsTuples.sort(function(i, j) {
+//         return j[1] - i[1];
+//       });
+//       userIdsToEmeraldCredsTuples.slice(0, userIdsToEmeraldCredsTuples.length * 0.1);
+//       const newEmeraldUserIds = [];
+//       // FUTURE: we might be arbitrarily picking someone if there's a tie, should probably handle this
+//       for (const userIdToEmeraldCredsTuple of userIdsToEmeraldCredsTuples.slice(0, userIdsToEmeraldCredsTuples.length * 0.1)) {
+//         newEmeraldUserIds.push(userIdToEmeraldCredsTuple[0]);
+//       }
 
-      const awardingEmeraldUserIds = [];
-      const removingEmeraldUserIds = [];
-      for (const userId of newEmeraldUserIds) {
-        if (!curEmeraldUserIds.includes(userId)) {
-          awardingEmeraldUserIds.push(userId);
-        }
-      }
-      for (const userId of curEmeraldUserIds) {
-        if (!newEmeraldUserIds.includes(userId)) {
-          removingEmeraldUserIds.push(userId);
-        }
-      }
+//       const awardingEmeraldUserIds = [];
+//       const removingEmeraldUserIds = [];
+//       for (const userId of newEmeraldUserIds) {
+//         if (!curEmeraldUserIds.includes(userId)) {
+//           awardingEmeraldUserIds.push(userId);
+//         }
+//       }
+//       for (const userId of curEmeraldUserIds) {
+//         if (!newEmeraldUserIds.includes(userId)) {
+//           removingEmeraldUserIds.push(userId);
+//         }
+//       }
 
-      awardingEmeraldUserIds.forEach(async (userId) => {
-        functions.logger.log("Awarding Taste Emerald to user and sending notifications", userId);
-        // const userData = userIdsToUserData[userId];
-        await db.collection("users").doc(userId).update({
-          emerald: true,
-        });
-        // payload = {
-        //   ownerId: userId,
-        //   type: "YouWereAwardedTasteEmerald",
-        //   title: `Congratulations, ${userData.firstName} - you were awarded Taste Emerald`,
-        //   body: "you have dope recs",
-        //   notificationIcon: "",
-        //   notificationLink: "",
-        //   seen: false,
-        //   timestamp: admin.firestore.Timestamp.now(),
-        // }
-        // db.collection("notifications").add(payload);
-        // TODO: send notification to friends
-      });
+//       awardingEmeraldUserIds.forEach(async (userId) => {
+//         functions.logger.log("Awarding Taste Emerald to user and sending notifications", userId);
+//         // const userData = userIdsToUserData[userId];
+//         await db.collection("users").doc(userId).update({
+//           emerald: true,
+//         });
+//         // payload = {
+//         //   ownerId: userId,
+//         //   type: "YouWereAwardedTasteEmerald",
+//         //   title: `Congratulations, ${userData.firstName} - you were awarded Taste Emerald`,
+//         //   body: "you have dope recs",
+//         //   notificationIcon: "",
+//         //   notificationLink: "",
+//         //   seen: false,
+//         //   timestamp: admin.firestore.Timestamp.now(),
+//         // }
+//         // db.collection("notifications").add(payload);
+//         // TODO: send notification to friends
+//       });
 
-      removingEmeraldUserIds.forEach(async (userId) => {
-        functions.logger.log("Removing Taste Emerald from user and sending notifications", userId);
-        // const userData = userIdsToUserData[userId];
-        await db.collection("users").doc(userId).update({
-          emerald: false,
-        });
-        // payload = {
-        //   ownerId: userId,
-        //   type: "YouWereAwardedTasteEmerald",
-        //   title: `You've lost your Taste Emerald status`,
-        //   body: "wow that sucks",
-        //   notificationIcon: "",
-        //   notificationLink: "",
-        //   seen: false,
-        //   timestamp: admin.firestore.Timestamp.now(),
-        // }
-        // db.collection("notifications").add(payload);
-        // TODO: send notification to user
-      });
-    });
+//       removingEmeraldUserIds.forEach(async (userId) => {
+//         functions.logger.log("Removing Taste Emerald from user and sending notifications", userId);
+//         // const userData = userIdsToUserData[userId];
+//         await db.collection("users").doc(userId).update({
+//           emerald: false,
+//         });
+//         // payload = {
+//         //   ownerId: userId,
+//         //   type: "YouWereAwardedTasteEmerald",
+//         //   title: `You've lost your Taste Emerald status`,
+//         //   body: "wow that sucks",
+//         //   notificationIcon: "",
+//         //   notificationLink: "",
+//         //   seen: false,
+//         //   timestamp: admin.firestore.Timestamp.now(),
+//         // }
+//         // db.collection("notifications").add(payload);
+//         // TODO: send notification to user
+//       });
+//     });
 
 // exports.createNotificationsForBatchPosts = functions
 //     .pubsub.schedule("0 21 * * *") // 9:00pm everyday
