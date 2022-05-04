@@ -135,13 +135,14 @@ def create_events_for_user_posted_taste(post_ids_to_data, queue_post_ids_to_data
     for queue_post_id, queue_post_data in queue_post_ids_to_data.items():
         post_id = queue_post_data.get('postId')
         post = post_ids_to_data[post_id]
+        timestamp = post['timestamp']
         events.append({
             'type': 'UserPostedTaste',
             'user': post['user'],
             'data': {
                 'post': post_id
             },
-            'timestamp': post["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
+            'timestamp': datetime.datetime.strptime(timestamp.strftime("%Y-%m-%d %H:%M:%S"), '%Y-%m-%d %H:%M:%S')
         })
     return events
 
@@ -167,6 +168,7 @@ def create_events_for_user_tasted_place_first(place_ids_to_post_data, place_ids_
             user_friend_ids = user_ids_to_data[user]['friends']
             place_posts_filtered = [p for p in sanitized_place_post_data if p['user'] in user_friend_ids or p['user'] == user]
             place_first_post_for_friends = place_posts_filtered[0]
+            timestamp = place_first_post_for_friends["timestamp"]
             # prevent creating event for same person in multiple friend graphs
             if place_first_post_for_friends['user'] != user:
                 continue
@@ -176,7 +178,7 @@ def create_events_for_user_tasted_place_first(place_ids_to_post_data, place_ids_
                 'data': {
                     'post': place_first_post_for_friends['id']
                 },
-                'timestamp': place_first_post_for_friends["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
+                'timestamp': datetime.datetime.strptime(timestamp.strftime("%Y-%m-%d %H:%M:%S"), '%Y-%m-%d %H:%M:%S')
             })
     return events
 
@@ -204,6 +206,7 @@ def create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_d
             user_id = place_want_to_taste['user']
             user_friend_ids = user_ids_to_data[user_id]['friends']
             place_posts_filtered = [p for p in sanitized_place_post_data if p['user'] in user_friend_ids and p['starRating'] >= 3]
+            timestamp = place_want_to_taste["timestamp"]
             for place_post in place_posts_filtered:
                 events.append({
                     'type': 'FriendWantsToTastePlaceYouTasted',
@@ -212,7 +215,7 @@ def create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_d
                         'place': place_id,
                         'user': user_id
                     },
-                    'timestamp': place_want_to_taste["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
+                    'timestamp': datetime.datetime.strptime(timestamp.strftime("%Y-%m-%d %H:%M:%S"), '%Y-%m-%d %H:%M:%S')
                 })
     return events
 
@@ -241,6 +244,7 @@ def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_dat
             post_id = queue_post['id']
             user_id = queue_post['user']
             star_rating = queue_post['starRating']
+            timestamp = queue_post['timestamp']
             friends = user_ids_to_data[user_id]['friends']
             index = sanitized_place_post_data.index(queue_post)
             for i in range(index):
@@ -253,7 +257,7 @@ def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_dat
                     'data': {
                         'post': post_id
                     },
-                    'timestamp': queue_post["timestamp"].strftime("%Y-%m-%d %H:%M:%S")
+                    'timestamp': datetime.datetime.strptime(timestamp.strftime("%Y-%m-%d %H:%M:%S"), '%Y-%m-%d %H:%M:%S')
                 }
                 if star_rating == 5:
                     events.append({**{'type': 'FriendLikedPlaceYouTasted'}, **payload})
