@@ -196,12 +196,17 @@ exports.createNotificationsForPostReply = functions.firestore
           ownerId: existingReplyOwnerId,
           type: "UserRepliedToTaste",
           title: `${replyOwnerData.firstName} replied to a taste you're following`,
-          body: `They replied to ${postOwnerData.firstName}'s taste of ${placeData.name} - see what they said`,
           notificationIcon: replyOwnerId,
           notificationLink: postId,
           seen: false,
           timestamp: admin.firestore.Timestamp.now(),
         };
+
+        if (postData.user.id == replyOwnerId) {
+          payload["body"] = `They replied to their own taste of ${placeData.name} - see what they said`;
+        } else {
+          payload["body"] = `They replied to ${postOwnerData.firstName}'s taste of ${placeData.name} - see what they said`;
+        }
         functions.logger.log("Creating notification with payload (UserRepliedToTaste)", payload);
         db.collection("notifications").add(payload);
       });
