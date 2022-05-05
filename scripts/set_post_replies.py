@@ -12,8 +12,7 @@ def set_post_replies(db):
         current_reply_owner_refs = p.to_dict().get('replyOwnerRefs', [])
         replies = db.collection('posts').document(p.id).collection('replies').get()
         new_reply_owner_refs = [r.get('owner') for r in replies]
-        if len(new_reply_owner_refs) == 0 or current_reply_owner_refs == new_reply_owner_refs:
-            print(f'Skipping reply owners on post "{p.id}"...')
+        if len(new_reply_owner_refs) == 0 or set(current_reply_owner_refs) == set(new_reply_owner_refs):
             continue
         print(f'Setting reply owners on post "{p.id}"...')
         db.collection('posts').document(p.id).update({
