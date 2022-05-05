@@ -111,6 +111,9 @@ if __name__ == '__main__':
             user_first_name = user['firstName']
             print(event_type, user_first_name, place_name)
             db.collection('events').document(e.id).update({
+                'data': {
+                    'user': user_id
+                },
                 'credsData': {
                     'friendFirstName': user_first_name,
                     'placeName': place_name
@@ -127,6 +130,9 @@ if __name__ == '__main__':
             place_name = place['name']
             print(event_type, user_first_name, place_name)
             db.collection('events').document(e.id).update({
+                'data': {
+                    'user': user_id
+                },
                 'credsData': {
                     'friendFirstName': user_first_name,
                     'placeName': place_name

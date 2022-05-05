@@ -278,6 +278,7 @@ def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_dat
                 payload = {
                     'user': comp_user_id,
                     'data': {
+                        'user': user_id,
                         'post': post_id
                     },
                     'credsData': {
