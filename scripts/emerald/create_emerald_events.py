@@ -129,18 +129,24 @@ def _get_place_ids_to_want_to_taste_data(place_ids_to_data, queue_want_to_taste_
     return place_ids_to_want_to_taste_data
 
 # create 'UserPostedTaste' events whenever a user posts a taste
-def create_events_for_user_posted_taste(post_ids_to_data, queue_post_ids_to_data):
+# e.g. 'You tasted Carbone'
+def create_events_for_user_posted_taste(post_ids_to_data, queue_post_ids_to_data, place_ids_to_data):
     print('Creating events for users posting tastes...')
     events = []
     for queue_post_id, queue_post_data in queue_post_ids_to_data.items():
         post_id = queue_post_data.get('postId')
         post = post_ids_to_data[post_id]
+        place_id = post['place']
+        place = place_ids_to_data[place_id]
         timestamp = post['timestamp']
         events.append({
             'type': 'UserPostedTaste',
             'user': post['user'],
             'data': {
-                'post': post_id
+                'post': post_id,
+            },
+            'credsData': {
+                'placeName': place['name']
             },
             'timestamp': datetime.datetime.strptime(timestamp.strftime("%Y-%m-%d %H:%M:%S"), '%Y-%m-%d %H:%M:%S')
         })
@@ -148,10 +154,13 @@ def create_events_for_user_posted_taste(post_ids_to_data, queue_post_ids_to_data
 
 # create 'UserTastedPlaceFirst' events whenever a user posts a taste that is
 # the first taste of that place within their friend graph
-def create_events_for_user_tasted_place_first(place_ids_to_post_data, place_ids_to_queue_post_data, user_ids_to_data):
+# e.g. 'You discovered Carbone, a place none of your friends have tasted'
+def create_events_for_user_tasted_place_first(place_ids_to_post_data, place_ids_to_queue_post_data, place_ids_to_data, user_ids_to_data):
     print('Creating events for users tasting place first...')
     events = []
     for place_id, place_post_data in place_ids_to_post_data.items():
+        place = place_ids_to_data[place_id]
+
         # get sorted list of posts filtering out retastes
         sorted_place_post_data = sorted(place_post_data, key=lambda p: p['timestamp'])
         sanitized_place_post_data = []
@@ -178,6 +187,9 @@ def create_events_for_user_tasted_place_first(place_ids_to_post_data, place_ids_
                 'data': {
                     'post': place_first_post_for_friends['id']
                 },
+                'credsData': {
+                    'placeName': place['name'],
+                },
                 'timestamp': datetime.datetime.strptime(timestamp.strftime("%Y-%m-%d %H:%M:%S"), '%Y-%m-%d %H:%M:%S')
             })
     return events
@@ -185,11 +197,13 @@ def create_events_for_user_tasted_place_first(place_ids_to_post_data, place_ids_
 # create 'FriendWantsToTastePlaceYouTasted' events whenever a user's friend
 # wants to taste a place that the user tasted if both the user's friend's
 # post and the user's post is at least 3 stars
-def create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_data, place_ids_to_want_to_taste_data, post_ids_to_data, user_ids_to_data):
+# e.g. 'Tejas wants to taste Carbone because of you'
+def create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_data, place_ids_to_want_to_taste_data, place_ids_to_data, post_ids_to_data, user_ids_to_data):
     print('Creating events for friends wanting to taste places...')
     events = []
     place_ids = set(place_ids_to_post_data.keys()) | set(place_ids_to_want_to_taste_data.keys())
     for place_id in place_ids:
+        place = place_ids_to_data[place_id]
         place_post_data = place_ids_to_post_data.get(place_id, [])
         place_want_to_taste_data = place_ids_to_want_to_taste_data.get(place_id, [])
 
@@ -204,6 +218,7 @@ def create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_d
 
         for place_want_to_taste in place_want_to_taste_data:
             user_id = place_want_to_taste['user']
+            user = user_ids_to_data[user_id]
             user_friend_ids = user_ids_to_data[user_id]['friends']
             place_posts_filtered = [p for p in sanitized_place_post_data if p['user'] in user_friend_ids and p['starRating'] >= 3]
             timestamp = place_want_to_taste["timestamp"]
@@ -215,6 +230,10 @@ def create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_d
                         'place': place_id,
                         'user': user_id
                     },
+                    'credsData': {
+                        'friendFirstName': user['firstName'],
+                        'placeName': place['name']
+                    },
                     'timestamp': datetime.datetime.strptime(timestamp.strftime("%Y-%m-%d %H:%M:%S"), '%Y-%m-%d %H:%M:%S')
                 })
     return events
@@ -224,10 +243,13 @@ def create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_d
 # friend's taste is either 3 or 4 stars; create 'FriendLikedPlaceYouTasted'
 # whenever a user's friend tastes a place that the user tasted if the user's
 # taste is at least 3 stars and the friend's taste is 5 stars
-def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_data, place_ids_to_queue_post_data, user_ids_to_data):
+# e.g. 'Tejas tasted Carbone because of you' or 'Tejas tasted Carbone because of you and said it was excellent'
+def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_data, place_ids_to_queue_post_data, place_ids_to_data, user_ids_to_data):
     print('Creating events for friends tasting/liking places...')
     events = []
     for place_id, place_post_data in place_ids_to_post_data.items():
+        place = place_ids_to_data[place_id]
+
         # get sorted list of posts filtering out star ratings less than 3 and retastes
         sorted_place_post_data = sorted(place_post_data, key=lambda p: p['timestamp'])
         filtered_place_post_data = [p for p in sorted_place_post_data if p['starRating'] >= 3]
@@ -243,6 +265,7 @@ def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_dat
                 continue
             post_id = queue_post['id']
             user_id = queue_post['user']
+            user = user_ids_to_data[user_id]
             star_rating = queue_post['starRating']
             timestamp = queue_post['timestamp']
             friends = user_ids_to_data[user_id]['friends']
@@ -256,6 +279,10 @@ def create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_dat
                     'user': comp_user_id,
                     'data': {
                         'post': post_id
+                    },
+                    'credsData': {
+                        'friendFirstName': user['firstName'],
+                        'placeName': place['name']
                     },
                     'timestamp': datetime.datetime.strptime(timestamp.strftime("%Y-%m-%d %H:%M:%S"), '%Y-%m-%d %H:%M:%S')
                 }
@@ -341,10 +368,10 @@ if __name__ == '__main__':
 
     # create events
     events = []
-    events.extend(create_events_for_user_posted_taste(post_ids_to_data, queue_post_ids_to_data))
-    events.extend(create_events_for_user_tasted_place_first(place_ids_to_post_data, place_ids_to_queue_post_data, user_ids_to_data))
-    events.extend(create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_data, place_ids_to_want_to_taste_data, post_ids_to_data, user_ids_to_data))
-    events.extend(create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_data, place_ids_to_queue_post_data, user_ids_to_data))
+    events.extend(create_events_for_user_posted_taste(post_ids_to_data, queue_post_ids_to_data, place_ids_to_data))
+    events.extend(create_events_for_user_tasted_place_first(place_ids_to_post_data, place_ids_to_queue_post_data, place_ids_to_data, user_ids_to_data))
+    events.extend(create_events_for_friend_wants_to_taste_place_you_tasted(place_ids_to_post_data, place_ids_to_want_to_taste_data, place_ids_to_data, post_ids_to_data, user_ids_to_data))
+    events.extend(create_events_for_friend_tasted_liked_place_you_tasted(place_ids_to_post_data, place_ids_to_queue_post_data, place_ids_to_data, user_ids_to_data))
 
     output_events(events)
     publish_events(db, events)
