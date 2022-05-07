@@ -89,7 +89,7 @@ def process_emerald_statuses(db, user_ids_to_data, current_emerald_user_ids, upd
             'ownerId': u,
             'type': 'YouLostTasteEmerald',
             'title': "You've just lost Taste Emerald",
-            'body': 'TODO',
+            'body': 'Get it back by earning more creds',
             'notificationIcon': u,
             'notificationLink': u,
             'seen': False,
