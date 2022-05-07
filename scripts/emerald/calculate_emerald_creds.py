@@ -81,15 +81,46 @@ def process_emerald_statuses(db, user_ids_to_data, current_emerald_user_ids, upd
     remove_emerald_user_ids = list(set(current_emerald_user_ids) - set(updated_emerald_user_ids))
     award_emerald_user_ids = list(set(updated_emerald_user_ids) - set(current_emerald_user_ids))
     for u in remove_emerald_user_ids:
-        print(f'Removing Emerald status from {user_ids_to_data[u]["handle"]}...')
-        # db.collection('users').document(u).update({
-        #     'emerald': False
-        # })
+        print(f'Removing Emerald status from {user_ids_to_data[u]["handle"]} and creating notifications...')
+        db.collection('users').document(u).update({
+            'emerald': False
+        })
+        db.collection('notifications').add({
+            'ownerId': u,
+            'type': 'YouLostTasteEmerald',
+            'title': "You've just lost Taste Emerald",
+            'body': 'TODO',
+            'notificationIcon': u,
+            'notificationLink': u,
+            'seen': False,
+            'timestamp': firestore.SERVER_TIMESTAMP
+        })
     for u in award_emerald_user_ids:
-        print(f'Awarding Emerald status to {user_ids_to_data[u]["handle"]}...')
-        # db.collection('users').document(u).update({
-        #     'emerald': True
-        # })
+        print(f'Awarding Emerald status to {user_ids_to_data[u]["handle"]} and creating notifications...')
+        db.collection('users').document(u).update({
+            'emerald': True
+        })
+        db.collection('notifications').add({
+            'ownerId': u,
+            'type': 'YouWereAwardedTasteEmerald',
+            'title': "You've just been awarded Taste Emerald",
+            'body': 'You consistently recommend great places to your friends - keep it up',
+            'notificationIcon': u,
+            'notificationLink': u,
+            'seen': False,
+            'timestamp': firestore.SERVER_TIMESTAMP
+        })
+        for f in user_ids_to_data[u]['friends']:
+            db.collection('notifications').add({
+                'ownerId': f,
+                'type': 'FriendWasAwardedTasteEmerald',
+                'title': f'{user_ids_to_data[u]["firstName"]} was just awarded Taste Emerald',
+                'body': 'They consistently recommend great places to their friends - check out their tastes',
+                'notificationIcon': u,
+                'notificationLink': u,
+                'seen': False,
+                'timestamp': firestore.SERVER_TIMESTAMP
+            })
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
