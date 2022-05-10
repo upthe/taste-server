@@ -61,7 +61,7 @@ def calculate_emerald_user_ids(user_ids_to_creds):
     tuples = sorted(tuples, key=lambda t: t[1], reverse=True)
 
     emerald_user_ids = []
-    num_emerald_ranks = int(len(user_ids_to_creds) * 0.1)
+    num_emerald_ranks = int(len(user_ids_to_creds) * 0.12)
     i = 0
     while i < num_emerald_ranks:
         user_id, creds = tuples[i]
