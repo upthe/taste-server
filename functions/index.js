@@ -86,7 +86,7 @@ exports.createNotificationsForPost = functions.firestore
           payload["notificationIcon"] = userId;
           payload["notificationLink"] = postId;
           functions.logger.log("Creating notification with payload", payload);
-          db.collection("notifications").add(payload);
+          await db.collection("notifications").add(payload);
         } else {
           if (userFriendTastedIds.includes(placeId)) {
             const userFriendPostRef = db.collection("posts").where("user", "==", userFriendRef).where("place", "==", placeRef).orderBy("timestamp", "desc").limit(1);
@@ -99,7 +99,7 @@ exports.createNotificationsForPost = functions.firestore
               payload["notificationIcon"] = userId;
               payload["notificationLink"] = postId;
               functions.logger.log("Creating notification with payload", payload);
-              db.collection("notifications").add(payload);
+              await db.collection("notifications").add(payload);
             } else {
               payload["type"] = "FriendTastedPlaceYouTastedDisagree";
               payload["title"] = `${userData.firstName} disagrees with your taste`;
@@ -107,7 +107,7 @@ exports.createNotificationsForPost = functions.firestore
               payload["notificationIcon"] = userId;
               payload["notificationLink"] = postId;
               functions.logger.log("Creating notification with payload", payload);
-              db.collection("notifications").add(payload);
+              await db.collection("notifications").add(payload);
             }
           } else if (userFriendWantToTasteIds.includes(placeId)) {
             payload["type"] = "FriendTastedPlaceYouWantToTaste";
@@ -116,7 +116,7 @@ exports.createNotificationsForPost = functions.firestore
             payload["notificationIcon"] = userId;
             payload["notificationLink"] = postId;
             functions.logger.log("Creating notification with payload", payload);
-            db.collection("notifications").add(payload);
+            await db.collection("notifications").add(payload);
           } else if (starRating == 5) {
             payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
             payload["title"] = `${userData.firstName} said ${placeData.name} was excellent`;
@@ -124,7 +124,7 @@ exports.createNotificationsForPost = functions.firestore
             payload["notificationIcon"] = userId;
             payload["notificationLink"] = postId;
             functions.logger.log("Creating notification with payload", payload);
-            db.collection("notifications").add(payload);
+            await db.collection("notifications").add(payload);
           }
         }
       });
@@ -191,7 +191,7 @@ exports.createNotificationsForPostReply = functions.firestore
       }
 
       // Send notifications to everyone that's replied so far
-      existingRepliesOwnerIds.forEach((existingReplyOwnerId) => {
+      existingRepliesOwnerIds.forEach(async (existingReplyOwnerId) => {
         const payload = {
           ownerId: existingReplyOwnerId,
           type: "UserRepliedToTaste",
@@ -208,7 +208,7 @@ exports.createNotificationsForPostReply = functions.firestore
           payload["body"] = `They replied to ${postOwnerData.firstName}'s taste of ${placeData.name} - see what they said`;
         }
         functions.logger.log("Creating notification with payload (UserRepliedToTaste)", payload);
-        db.collection("notifications").add(payload);
+        await db.collection("notifications").add(payload);
       });
     });
 
@@ -222,7 +222,7 @@ exports.handleNotification = functions.firestore
       const notifData = snap.data();
       functions.logger.log("Dumping notification data", notifData);
 
-      return db.collection("users").doc(notifData.ownerId).get().then((qds) => {
+      return db.collection("users").doc(notifData.ownerId).get().then(async (qds) => {
         const userData = qds.data();
         const fcmToken = userData.fcmToken;
         if (!fcmToken) {
@@ -237,7 +237,7 @@ exports.handleNotification = functions.firestore
           },
         };
         functions.logger.log("Dumping userData.handle, fcmToken, payload, notifData.type, then sending message notification", userData.handle, fcmToken, payload, notifData.type);
-        admin.messaging().sendToDevice(fcmToken, payload);
+        await admin.messaging().sendToDevice(fcmToken, payload);
       });
     });
 
@@ -324,7 +324,7 @@ exports.awardBadges = functions
         });
       });
 
-      return db.collection("users").get().then(async (snapshot) => {
+      await db.collection("users").get().then(async (snapshot) => {
         snapshot.docs.forEach((user) => {
           const userData = user.data();
           const userBadgeFriendlyIdentifiers = userData.badgeFriendlyIdentifiers ? userData.badgeFriendlyIdentifiers : [];
@@ -360,7 +360,7 @@ exports.awardBadges = functions
 
                   const badgeName = badgeFriendlyIdentifiersToDetails[badgeFriendlyIdentifier].name;
 
-                  db.collection("notifications").add({
+                  await db.collection("notifications").add({
                     ownerId: user.id,
                     type: "BadgeAwardedToYou",
                     title: `You were awarded the ${badgeName} badge`,
@@ -371,8 +371,8 @@ exports.awardBadges = functions
                     timestamp: admin.firestore.Timestamp.now(),
                   });
 
-                  userFriends.forEach((userFriend) => {
-                    db.collection("notifications").add({
+                  userFriends.forEach(async (userFriend) => {
+                    await db.collection("notifications").add({
                       ownerId: userFriend.id,
                       type: "BadgeAwardedToFriend",
                       title: `${userData.firstName} was awarded the ${badgeName} badge`,
@@ -399,11 +399,11 @@ exports.setEmptyCuisines = functions
     .onRun((context) => {
       functions.logger.log("Starting to process setting empty cuisines");
       return db.collection("places").get().then((snapshot) => {
-        snapshot.docs.forEach((place) => {
+        snapshot.docs.forEach(async (place) => {
           const placeData = place.data();
           if (!Object.keys(placeData).includes("cuisines")) {
             functions.logger.log("Found place with no cuisines field, setting to list with element empty string, dumping place.id, placeData.name", place.id, placeData.name);
-            place.ref.update({
+            await place.ref.update({
               "cuisines": [""],
             });
           }
@@ -454,7 +454,7 @@ exports.addWantToTaste = functions
           const userFriendPostData = userFriendPostQds.docs[0].data();
           if (userFriendPostData.starRating >= 4) {
             functions.logger.log("Creating notification for FriendWantsToTastePlaceYouTasted, dumping userData.handle, userFriendData.handle, placeData.name, placeId", userData.handle, userFriendData.handle, placeData.name, placeId);
-            db.collection("notifications").add({
+            await db.collection("notifications").add({
               ownerId: userFriend.id,
               type: "FriendWantsToTastePlaceYouTasted",
               title: `${userData.firstName} wants to taste ${placeData.name}`,
@@ -469,7 +469,7 @@ exports.addWantToTaste = functions
 
         if (userFriendWantToTasteIds.includes(placeId)) {
           functions.logger.log("Creating notification for FriendWantsToTastePlaceYouWantToTaste, dumping userData.handle, userFriendData.handle, placeData.name, placeId", userData.handle, userFriendData.handle, placeData.name, placeId);
-          db.collection("notifications").add({
+          await db.collection("notifications").add({
             ownerId: userFriend.id,
             type: "FriendWantsToTastePlaceYouWantToTaste",
             title: `${userData.firstName} just said they want to taste ${placeData.name}`,
@@ -518,7 +518,7 @@ exports.addPostReaction = functions
           timestamp: admin.firestore.Timestamp.now(),
         };
         functions.logger.log("Creating notification with payload", payload);
-        db.collection("notifications").add(payload);
+        await db.collection("notifications").add(payload);
       }
     });
 
@@ -562,7 +562,7 @@ exports.addPostReplyReaction = functions
           timestamp: admin.firestore.Timestamp.now(),
         };
         functions.logger.log("Creating notification with payload", payload);
-        db.collection("notifications").add(payload);
+        await db.collection("notifications").add(payload);
       }
     });
 
