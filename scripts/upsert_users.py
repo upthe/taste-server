@@ -77,6 +77,10 @@ if __name__ == '__main__':
     db = firestore.client()
     current_users = get_current_users(db)
     upsert_users = parse_users_file(args.users_path)
+
+    assert len(set([u.email for u in upsert_users])) == len(upsert_users), 'duplicate emails in new users'
+    assert len(set([u.handle for u in upsert_users])) == len(upsert_users), 'duplicate handles in new users'
+    assert len(set([u.phone_number for u in upsert_users])) == len(upsert_users), 'duplicate phone numbers in new users'
     
     current_emails = set([u.email for u in current_users])
     current_handles = set([u.handle for u in current_users])
