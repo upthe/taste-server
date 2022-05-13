@@ -163,7 +163,7 @@ if __name__ == '__main__':
     else:
         user_ids_to_creds_tuples = get_user_ids_to_creds_tuples(user_ids_to_data, event_ids_to_data, event_type_to_creds)
         user_ids_to_creds_tuples = sorted(user_ids_to_creds_tuples, key=lambda t: t[1], reverse=True)
-        for i in range(0, 20):
+        for i in range(0, len(user_ids_to_creds_tuples)):
             user_id_to_creds_tuple = user_ids_to_creds_tuples[i]
             user = user_ids_to_data[user_id_to_creds_tuple[0]]
             print(f'{i + 1}. {user["handle"]} - {user_id_to_creds_tuple[1]}')
