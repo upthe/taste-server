@@ -59,7 +59,7 @@ exports.createNotificationsForPost = functions.firestore
       const userPostsCount = userPostsQds.docs.length;
 
       const userFriends = userData.friends;
-      userFriends.forEach(async (userFriend) => {
+      for (const userFriend of userFriends) {
         const payload = {
           ownerId: userFriend.id,
           seen: false,
@@ -127,7 +127,7 @@ exports.createNotificationsForPost = functions.firestore
             await db.collection("notifications").add(payload);
           }
         }
-      });
+      }
     });
 
 exports.createNotificationsForPostReply = functions.firestore
@@ -191,7 +191,7 @@ exports.createNotificationsForPostReply = functions.firestore
       }
 
       // Send notifications to everyone that's replied so far
-      existingRepliesOwnerIds.forEach(async (existingReplyOwnerId) => {
+      for (const existingReplyOwnerId of existingRepliesOwnerIds) {
         const payload = {
           ownerId: existingReplyOwnerId,
           type: "UserRepliedToTaste",
@@ -209,7 +209,7 @@ exports.createNotificationsForPostReply = functions.firestore
         }
         functions.logger.log("Creating notification with payload (UserRepliedToTaste)", payload);
         await db.collection("notifications").add(payload);
-      });
+      }
     });
 
 // Triggered when a notification is created so we can send notifications
@@ -434,7 +434,7 @@ exports.addWantToTaste = functions
       });
 
       const userFriends = await db.collection("users").where("friends", "array-contains", userRef).get();
-      userFriends.forEach(async (userFriend) => {
+      for (const userFriend of userFriends.docs) {
         const userFriendRef = db.collection("users").doc(userFriend.id);
         const userFriendQds = await userFriendRef.get();
         const userFriendData = userFriendQds.data();
@@ -480,7 +480,7 @@ exports.addWantToTaste = functions
             timestamp: admin.firestore.Timestamp.now(),
           });
         }
-      });
+      }
     });
 
 // Triggered whenever a reaction is added to a post so we can send notifications
