@@ -452,7 +452,7 @@ exports.addWantToTaste = functions
           const userFriendPostRef = db.collection("posts").where("user", "==", userFriendRef).where("place", "==", placeRef).orderBy("timestamp", "desc").limit(1);
           const userFriendPostQds = await userFriendPostRef.get();
           const userFriendPostData = userFriendPostQds.docs[0].data();
-          if (userFriendPostData.starRating >= 4) {
+          if (userFriendPostData.starRating >= 3) {
             functions.logger.log("Creating notification for FriendWantsToTastePlaceYouTasted, dumping userData.handle, userFriendData.handle, placeData.name, placeId", userData.handle, userFriendData.handle, placeData.name, placeId);
             await db.collection("notifications").add({
               ownerId: userFriend.id,
