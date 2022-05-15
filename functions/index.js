@@ -180,7 +180,7 @@ exports.createNotificationsForPostReply = functions.firestore
           ownerId: postData.user.id,
           type: "FriendRepliedToYourTaste",
           title: `${replyOwnerData.firstName} replied to your taste of ${placeData.name}`,
-          body: `${replyData.reply}`,
+          body: replyData.reply,
           notificationIcon: replyOwnerId,
           notificationLink: postId,
           seen: false,
@@ -557,6 +557,71 @@ exports.addPostReplyReaction = functions
           type: "UserReactedToReply",
           title: `${userData.firstName} reacted ${emojiString} to your reply`,
           body: `They reacted to your reply on ${postOwnerFirstName}'s taste`,
+          notificationIcon: userId,
+          notificationLink: postId,
+          seen: false,
+          timestamp: admin.firestore.Timestamp.now(),
+        };
+        functions.logger.log("Creating notification with payload", payload);
+        await db.collection("notifications").add(payload);
+      }
+    });
+
+// Triggered for each mention in a taste
+exports.mentionUserInTaste = functions
+    .https.onCall(async (data, context) => {
+      functions.logger.log("Starting to process mention user in taste");
+      const userId = data.userId;
+      const mentionUserId = data.mentionUserId;
+      const postId = data.postId;
+
+      const userRef = db.collection("users").doc(userId);
+      const userQds = await userRef.get();
+      const userData = userQds.data();
+
+      const postRef = db.collection("posts").doc(postId);
+      const postQds = await postRef.get();
+      const postData = postQds.data();
+
+      if (userId != mentionUserId) {
+        const payload = {
+          ownerId: mentionUserId,
+          type: "UserMentionedYouInTaste",
+          title: `${userData.firstName} mentioned you in their taste`,
+          body: postData.review,
+          notificationIcon: userId,
+          notificationLink: postId,
+          seen: false,
+          timestamp: admin.firestore.Timestamp.now(),
+        };
+        functions.logger.log("Creating notification with payload", payload);
+        await db.collection("notifications").add(payload);
+      }
+    });
+
+// Triggered for each mention in reply
+exports.mentionUserInReply = functions
+    .https.onCall(async (data, context) => {
+      functions.logger.log("Starting to process mention user in reply");
+      const userId = data.userId;
+      const mentionUserId = data.mentionUserId;
+      const postId = data.postId;
+      const replyId = data.replyId;
+
+      const userRef = db.collection("users").doc(userId);
+      const userQds = await userRef.get();
+      const userData = userQds.data();
+
+      const replyRef = db.collection("posts").doc(postId).collection("replies").doc(replyId);
+      const replyQds = await replyRef.get();
+      const replyData = replyQds.data();
+
+      if (userId != mentionUserId) {
+        const payload = {
+          ownerId: mentionUserId,
+          type: "UserMentionedYouInReply",
+          title: `${userData.firstName} mentioned you in their reply`,
+          body: replyData.reply,
           notificationIcon: userId,
           notificationLink: postId,
           seen: false,
