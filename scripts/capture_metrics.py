@@ -18,6 +18,7 @@ def get_user_ids_to_data(db):
             continue
         epoch_creation_timestamp = auth_user.user_metadata.creation_timestamp / 1000
         user_ids_to_data[users[0].id] = {
+            'handle': users[0].get('handle'),
             'timestamp': datetime.datetime.fromtimestamp(epoch_creation_timestamp).replace(tzinfo=pytz.UTC)
         }
     return user_ids_to_data
@@ -133,7 +134,7 @@ def capture_post_spread_metrics(db, user_ids_to_data, post_ids_to_data):
         writer.writerow(['users'] + weeks)
         users = sorted(week_to_user_post_spread[weeks[-1]].keys())
         for u in users:
-            row = [u]
+            row = [user_ids_to_data[u]['handle']]
             for w in weeks:
                 row.append(len(week_to_user_post_spread[w].get(u, [])))
             writer.writerow(row)
