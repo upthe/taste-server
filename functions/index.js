@@ -348,7 +348,7 @@ exports.awardBadges = functions
             }));
           });
 
-          Promise.all(placeRefRequests).then(() => {
+          return Promise.all(placeRefRequests).then(() => {
             functions.logger.log("Dumping user handle and user cuisines to count", userData.handle, userCusinesToCount);
             Object.keys(cuisineToBadgeFriendlyIdentifier).forEach(async (cuisine) => {
               if (cuisine in userCusinesToCount && userCusinesToCount[cuisine] >= 10) {
