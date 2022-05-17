@@ -103,6 +103,8 @@ def _get_place_ids_to_queue_post_data(post_ids_to_data, queue_post_ids_to_data):
     place_ids_to_queue_post_data = {}
     for queue_post_id, queue_post_data in queue_post_ids_to_data.items():
         post_id = queue_post_data['postId']
+        if post_id not in post_ids_to_data:
+            continue
         post_data = post_ids_to_data[post_id]
         place_id = post_data['place']
         if place_id in place_ids_to_queue_post_data:
@@ -135,6 +137,8 @@ def create_events_for_user_posted_taste(post_ids_to_data, queue_post_ids_to_data
     events = []
     for queue_post_id, queue_post_data in queue_post_ids_to_data.items():
         post_id = queue_post_data.get('postId')
+        if post_id not in post_ids_to_data:
+            continue
         post = post_ids_to_data[post_id]
         place_id = post['place']
         place = place_ids_to_data[place_id]
