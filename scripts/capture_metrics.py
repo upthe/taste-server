@@ -17,8 +17,10 @@ def get_user_ids_to_data(db):
         if len(users) != 1:
             continue
         epoch_creation_timestamp = auth_user.user_metadata.creation_timestamp / 1000
-        user_ids_to_data[users[0].id] = {
-            'handle': users[0].get('handle'),
+        user = users[0]
+        user_ids_to_data[user.id] = {
+            'handle': user.get('handle'),
+            'phoneNumber': user.get('phoneNumber'),
             'timestamp': datetime.datetime.fromtimestamp(epoch_creation_timestamp).replace(tzinfo=pytz.UTC)
         }
     return user_ids_to_data
@@ -55,7 +57,18 @@ def get_notification_ids_to_data(db):
         }
     return notification_ids_to_data
 
-def calculate_cumulative_growth_metrics(db, user_ids_to_data, post_ids_to_data, reply_ids_to_data, notification_ids_to_data):
+def get_session_ids_to_data(db):
+    print('Getting sessions...')
+    session_ids_to_data = {}
+    sessions = db.collection('sessions').get()
+    for s in sessions:
+        session_ids_to_data[s.id] = {
+            'userPhoneNumber': s.get('userPhoneNumber'),
+            'timestamp': s.get('timestamp').replace(tzinfo=pytz.UTC)
+        }
+    return session_ids_to_data
+
+def calculate_cumulative_growth_metrics(user_ids_to_data, post_ids_to_data, reply_ids_to_data, notification_ids_to_data):
     print('Calculating cumulative growth metrics...')
     collections_to_query_data = {
         'users': {
@@ -93,7 +106,7 @@ def calculate_cumulative_growth_metrics(db, user_ids_to_data, post_ids_to_data, 
             writer.writerow(fields)
             writer.writerows(rows)
 
-def calculate_retention_metrics(db, user_ids_to_data, post_ids_to_data):
+def calculate_retention_metrics(user_ids_to_data, post_ids_to_data):
     print('Calculating retention metrics...')
     fields = ['start_week', 'num_unique_users_who_posted', 'num_users', 'num_posts']
     rows = []
@@ -111,7 +124,7 @@ def calculate_retention_metrics(db, user_ids_to_data, post_ids_to_data):
         writer.writerow(fields)
         writer.writerows(rows)
 
-def capture_post_spread_metrics(db, user_ids_to_data, post_ids_to_data):
+def capture_post_spread_metrics(user_ids_to_data, post_ids_to_data):
     print('Calculating post spread metrics...')
     week_to_user_post_spread = {}
     delta = datetime.timedelta(days=7)
@@ -139,6 +152,34 @@ def capture_post_spread_metrics(db, user_ids_to_data, post_ids_to_data):
                 row.append(len(week_to_user_post_spread[w].get(u, [])))
             writer.writerow(row)
 
+def capture_session_spread_metrics(user_ids_to_data, session_ids_to_data):
+    print('Calculating session spread metrics...')
+    week_to_user_session_spread = {}
+    delta = datetime.timedelta(days=7)
+    start_date = datetime.datetime(2022, 1, 11).replace(tzinfo=pytz.UTC) # start on Tuesday
+    end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC) - delta
+    while start_date < end_date:
+        users = [u for u, d in user_ids_to_data.items() if d['timestamp'] < start_date + delta]
+        sessions = [s for s, d in session_ids_to_data.items() if start_date < d['timestamp'] < start_date + delta]
+        users_to_sessions = {}
+        for u in users:
+            user_sessions = [s for s in sessions if session_ids_to_data[s]['userPhoneNumber'] == user_ids_to_data[u]['phoneNumber']]
+            users_to_sessions[u] = user_sessions
+        week_to_user_session_spread[str(start_date.date())] = {
+            u: users_to_sessions[u] for u in users
+        }
+        start_date += delta
+    with open(f'metrics/session_spread.csv', 'w') as f:
+        writer = csv.writer(f)
+        weeks = sorted(week_to_user_session_spread.keys())
+        writer.writerow(['users'] + weeks)
+        users = sorted(week_to_user_session_spread[weeks[-1]].keys())
+        for u in users:
+            row = [user_ids_to_data[u]['handle']]
+            for w in weeks:
+                row.append(len(week_to_user_session_spread[w].get(u, [])))
+            writer.writerow(row)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--cert-path', type=str, required=True)
@@ -160,6 +201,8 @@ if __name__ == '__main__':
     post_ids_to_data = get_post_ids_to_data(db)
     reply_ids_to_data = get_reply_ids_to_data(db, post_ids_to_data)
     notification_ids_to_data = get_notification_ids_to_data(db)
-    calculate_cumulative_growth_metrics(db, user_ids_to_data, post_ids_to_data, reply_ids_to_data, notification_ids_to_data)
-    calculate_retention_metrics(db, user_ids_to_data, post_ids_to_data)
-    capture_post_spread_metrics(db, user_ids_to_data, post_ids_to_data)
+    session_ids_to_data = get_session_ids_to_data(db)
+    calculate_cumulative_growth_metrics(user_ids_to_data, post_ids_to_data, reply_ids_to_data, notification_ids_to_data)
+    calculate_retention_metrics(user_ids_to_data, post_ids_to_data)
+    capture_post_spread_metrics(user_ids_to_data, post_ids_to_data)
+    capture_session_spread_metrics(user_ids_to_data, session_ids_to_data)
