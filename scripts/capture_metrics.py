@@ -124,14 +124,16 @@ def calculate_retention_metrics(user_ids_to_data, post_ids_to_data):
         writer.writerow(fields)
         writer.writerows(rows)
 
-def capture_post_spread_metrics(user_ids_to_data, post_ids_to_data):
-    print('Calculating post spread metrics...')
+def capture_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data):
+    print('Calculating post and session spread metrics...')
     week_to_user_post_spread = {}
+    week_to_user_session_spread = {}
     delta = datetime.timedelta(days=7)
     start_date = datetime.datetime(2022, 1, 11).replace(tzinfo=pytz.UTC) # start on Tuesday
     end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC) - delta
     while start_date < end_date:
         users = [u for u, d in user_ids_to_data.items() if d['timestamp'] < start_date + delta]
+
         posts = [p for p, d in post_ids_to_data.items() if start_date < d['timestamp'] < start_date + delta]
         users_to_posts = {}
         for u in users:
@@ -140,26 +142,7 @@ def capture_post_spread_metrics(user_ids_to_data, post_ids_to_data):
         week_to_user_post_spread[str(start_date.date())] = {
             u: users_to_posts[u] for u in users
         }
-        start_date += delta
-    with open(f'metrics/post_spread.csv', 'w') as f:
-        writer = csv.writer(f)
-        weeks = sorted(week_to_user_post_spread.keys())
-        writer.writerow(['users'] + weeks)
-        users = sorted(week_to_user_post_spread[weeks[-1]].keys())
-        for u in users:
-            row = [user_ids_to_data[u]['handle']]
-            for w in weeks:
-                row.append(len(week_to_user_post_spread[w].get(u, [])))
-            writer.writerow(row)
 
-def capture_session_spread_metrics(user_ids_to_data, session_ids_to_data):
-    print('Calculating session spread metrics...')
-    week_to_user_session_spread = {}
-    delta = datetime.timedelta(days=7)
-    start_date = datetime.datetime(2022, 1, 11).replace(tzinfo=pytz.UTC) # start on Tuesday
-    end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC) - delta
-    while start_date < end_date:
-        users = [u for u, d in user_ids_to_data.items() if d['timestamp'] < start_date + delta]
         sessions = [s for s, d in session_ids_to_data.items() if start_date < d['timestamp'] < start_date + delta]
         users_to_sessions = {}
         for u in users:
@@ -168,17 +151,22 @@ def capture_session_spread_metrics(user_ids_to_data, session_ids_to_data):
         week_to_user_session_spread[str(start_date.date())] = {
             u: users_to_sessions[u] for u in users
         }
+
         start_date += delta
-    with open(f'metrics/session_spread.csv', 'w') as f:
-        writer = csv.writer(f)
-        weeks = sorted(week_to_user_session_spread.keys())
-        writer.writerow(['users'] + weeks)
-        users = sorted(week_to_user_session_spread[weeks[-1]].keys())
-        for u in users:
-            row = [user_ids_to_data[u]['handle']]
-            for w in weeks:
-                row.append(len(week_to_user_session_spread[w].get(u, [])))
-            writer.writerow(row)
+
+    for t in [('post_spread.csv', week_to_user_post_spread), ('session_spread.csv', week_to_user_session_spread)]:
+        file_name = t[0]
+        spread = t[1]
+        with open(f'metrics/{file_name}', 'w') as f:
+            writer = csv.writer(f)
+            weeks = sorted(spread.keys())
+            writer.writerow(['users'] + weeks)
+            users = sorted(spread[weeks[-1]].keys())
+            for u in users:
+                row = [user_ids_to_data[u]['handle']]
+                for w in weeks:
+                    row.append(len(spread[w].get(u, [])))
+                writer.writerow(row)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -204,5 +192,4 @@ if __name__ == '__main__':
     session_ids_to_data = get_session_ids_to_data(db)
     calculate_cumulative_growth_metrics(user_ids_to_data, post_ids_to_data, reply_ids_to_data, notification_ids_to_data)
     calculate_retention_metrics(user_ids_to_data, post_ids_to_data)
-    capture_post_spread_metrics(user_ids_to_data, post_ids_to_data)
-    capture_session_spread_metrics(user_ids_to_data, session_ids_to_data)
+    capture_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data)
