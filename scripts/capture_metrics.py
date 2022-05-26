@@ -167,7 +167,10 @@ def capture_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_da
             for u in users:
                 row = [user_ids_to_data[u]['handle']]
                 for w in weeks:
-                    row.append(len(spread[w].get(u, [])))
+                    if u not in spread[w]:
+                        row.append('')
+                    else:
+                        row.append(len(spread[w][u]))
                 writer.writerow(row)
 
 if __name__ == '__main__':
