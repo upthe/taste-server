@@ -70,41 +70,30 @@ def get_session_ids_to_data(db):
 
 def calculate_raw_count_metrics(user_ids_to_data, post_ids_to_data, reply_ids_to_data, notification_ids_to_data):
     print('Calculating raw count metrics...')
-    collections_to_query_data = {
-        'users': {
-            'map': user_ids_to_data,
-            'startDate': datetime.datetime(2022, 1, 17)
-        },
-        'posts': {
-            'map': post_ids_to_data,
-            'startDate': datetime.datetime(2022, 1, 17)
-        },
-        'replies': {
-            'map': reply_ids_to_data,
-            'startDate': datetime.datetime(2022, 4, 1)
-        },
-        'notifications': {
-            'map': notification_ids_to_data,
-            'startDate': datetime.datetime(2022, 4, 1)
-        }
+    collections_to_maps = {
+        'users': user_ids_to_data,
+        'posts': post_ids_to_data,
+        'replies': reply_ids_to_data,
+        'notifications': notification_ids_to_data
     }
 
-    for collection, data in collections_to_query_data.items():
-        print(f'  Processing {collection}...')
-        collection_map = data['map']
-        fields = ['date', f'num_{collection}']
-        rows = []
-        delta = datetime.timedelta(days=1)
-        start_date = data['startDate'].replace(tzinfo=pytz.UTC)
-        end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC) - delta
-        while start_date <= end_date:
+    fields = ['date', 'users', 'posts', 'replies', 'notifications']
+    rows = []
+    delta = datetime.timedelta(days=1)
+    start_date = datetime.datetime(2022, 1, 17).replace(tzinfo=pytz.UTC)
+    end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC) - delta
+    while start_date < end_date:
+        row = [start_date.date()]
+        for f in  ['users', 'posts', 'replies', 'notifications']:
+            collection_map = collections_to_maps[f]
             count = len([k for k, v in collection_map.items() if v['timestamp'] < start_date])
-            rows.append([start_date.date(), count])
-            start_date += delta
-        with open(f'metrics/{collection}.csv', 'w') as f:
-            writer = csv.writer(f)
-            writer.writerow(fields)
-            writer.writerows(rows)
+            row.append(count)
+        rows.append(row)
+        start_date += delta
+    with open('metrics/raw_counts.csv', 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(fields)
+        writer.writerows(rows)
 
 def calculate_top_line_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data):
     print('Calculating top-line metrics...')
