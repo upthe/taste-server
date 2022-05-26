@@ -68,8 +68,8 @@ def get_session_ids_to_data(db):
         }
     return session_ids_to_data
 
-def calculate_cumulative_growth_metrics(user_ids_to_data, post_ids_to_data, reply_ids_to_data, notification_ids_to_data):
-    print('Calculating cumulative growth metrics...')
+def calculate_raw_count_metrics(user_ids_to_data, post_ids_to_data, reply_ids_to_data, notification_ids_to_data):
+    print('Calculating raw count metrics...')
     collections_to_query_data = {
         'users': {
             'map': user_ids_to_data,
@@ -106,9 +106,9 @@ def calculate_cumulative_growth_metrics(user_ids_to_data, post_ids_to_data, repl
             writer.writerow(fields)
             writer.writerows(rows)
 
-def calculate_retention_metrics(user_ids_to_data, post_ids_to_data):
-    print('Calculating retention metrics...')
-    fields = ['start_week', 'num_unique_users_who_posted', 'num_users', 'num_posts']
+def calculate_top_line_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data):
+    print('Calculating top-line metrics...')
+    fields = ['start_week', 'users', 'posts', 'users_who_tasted', 'users_who_visited']
     rows = []
     delta = datetime.timedelta(days=7)
     start_date = datetime.datetime(2022, 1, 11).replace(tzinfo=pytz.UTC) # start on Tuesday
@@ -116,18 +116,20 @@ def calculate_retention_metrics(user_ids_to_data, post_ids_to_data):
     while start_date < end_date:
         users = [u for u, d in user_ids_to_data.items() if d['timestamp'] < start_date + delta]
         posts = [d for p, d in post_ids_to_data.items() if start_date < d['timestamp'] < start_date + delta]
+        sessions = [d for s, d in session_ids_to_data.items() if start_date < d['timestamp'] < start_date + delta]
         post_unique_user_ids = list(set([p['user'] for p in posts]))
-        rows.append([start_date.date(), len(post_unique_user_ids), len(users), len(posts)])
+        session_unique_user_ids = list(set([s['userPhoneNumber'] for s in sessions]))
+        rows.append([start_date.date(), len(users), len(posts), len(post_unique_user_ids), len(session_unique_user_ids)])
         start_date += delta
-    with open(f'metrics/retention.csv', 'w') as f:
+    with open(f'metrics/top_line.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow(fields)
         writer.writerows(rows)
 
 def capture_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data):
-    print('Calculating post and session spread metrics...')
-    week_to_user_post_spread = {}
-    week_to_user_session_spread = {}
+    print('Calculating spread metrics...')
+    week_to_user_taste_spread = {}
+    week_to_user_visit_spread = {}
     delta = datetime.timedelta(days=7)
     start_date = datetime.datetime(2022, 1, 11).replace(tzinfo=pytz.UTC) # start on Tuesday
     end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC) - delta
@@ -139,7 +141,7 @@ def capture_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_da
         for u in users:
             user_posts = [p for p in posts if post_ids_to_data[p]['user'] == u]
             users_to_posts[u] = user_posts
-        week_to_user_post_spread[str(start_date.date())] = {
+        week_to_user_taste_spread[str(start_date.date())] = {
             u: users_to_posts[u] for u in users
         }
 
@@ -148,13 +150,13 @@ def capture_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_da
         for u in users:
             user_sessions = [s for s in sessions if session_ids_to_data[s]['userPhoneNumber'] == user_ids_to_data[u]['phoneNumber']]
             users_to_sessions[u] = user_sessions
-        week_to_user_session_spread[str(start_date.date())] = {
+        week_to_user_visit_spread[str(start_date.date())] = {
             u: users_to_sessions[u] for u in users
         }
 
         start_date += delta
 
-    for t in [('post_spread.csv', week_to_user_post_spread), ('session_spread.csv', week_to_user_session_spread)]:
+    for t in [('taste_spread.csv', week_to_user_taste_spread), ('visit_spread.csv', week_to_user_visit_spread)]:
         file_name = t[0]
         spread = t[1]
         with open(f'metrics/{file_name}', 'w') as f:
@@ -190,6 +192,6 @@ if __name__ == '__main__':
     reply_ids_to_data = get_reply_ids_to_data(db, post_ids_to_data)
     notification_ids_to_data = get_notification_ids_to_data(db)
     session_ids_to_data = get_session_ids_to_data(db)
-    calculate_cumulative_growth_metrics(user_ids_to_data, post_ids_to_data, reply_ids_to_data, notification_ids_to_data)
-    calculate_retention_metrics(user_ids_to_data, post_ids_to_data)
+    calculate_raw_count_metrics(user_ids_to_data, post_ids_to_data, reply_ids_to_data, notification_ids_to_data)
+    calculate_top_line_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data)
     capture_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data)
