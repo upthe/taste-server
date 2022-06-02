@@ -81,7 +81,7 @@ exports.createNotificationsForPost = functions.firestore
 
         if (userPostsCount == 1) {
           payload["type"] = "FriendFirstTaste";
-          payload["title"] = `${userData.firstName} just added their first taste`;
+          payload["title"] = `${userData.firstName} added their first taste`;
           payload["body"] = `They said ${placeData.name} was ${starRatingDescriptors[starRating - 1]}`;
           payload["notificationIcon"] = userId;
           payload["notificationLink"] = postId;
@@ -111,7 +111,7 @@ exports.createNotificationsForPost = functions.firestore
             }
           } else if (userFriendWantToTasteIds.includes(placeId)) {
             payload["type"] = "FriendTastedPlaceYouWantToTaste";
-            payload["title"] = `${userData.firstName} just tasted ${placeData.name}`;
+            payload["title"] = `${userData.firstName} tasted ${placeData.name}`;
             payload["body"] = `You want to taste ${placeData.name} - see what they said`;
             payload["notificationIcon"] = userId;
             payload["notificationLink"] = postId;
@@ -473,7 +473,7 @@ exports.addWantToTaste = functions
           await db.collection("notifications").add({
             ownerId: userFriend.id,
             type: "FriendWantsToTastePlaceYouWantToTaste",
-            title: `${userData.firstName} just said they want to taste ${placeData.name}`,
+            title: `${userData.firstName} wants to taste ${placeData.name}`,
             body: `You also want to taste ${placeData.name} - maybe you can go with them?`,
             notificationIcon: userId,
             notificationLink: placeId,
