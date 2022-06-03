@@ -173,7 +173,7 @@ def calculate_friend_graphs(user_ids_to_data):
     for u, d in user_ids_to_data.items():
         friends = [user_ids_to_data[f.id]['handle'] for f in d['friends'] if f.id in user_ids_to_data]
         user_to_friends[u] = ' '.join(friends)
-    with open(f'metrics/friend_graphs.csv', 'w') as f:
+    with open('metrics/friend_graphs.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow(['users', 'friends'])
         for u in sorted(user_ids_to_data.keys()):
@@ -189,13 +189,32 @@ def calculate_want_to_taste_counts(user_ids_to_data):
         friends = [user_ids_to_data[f.id]['handle'] for f in d['friends'] if f.id in user_ids_to_data]
         want_to_tastes = d['wantToTaste']
         user_to_want_to_taste[u] = len(want_to_tastes)
-    with open(f'metrics/want_to_taste_counts.csv', 'w') as f:
+    with open('metrics/want_to_taste_counts.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow(['users', 'want_to_taste_count'])
         for u in sorted(user_ids_to_data.keys()):
             row = [user_ids_to_data[u]['handle']]
             row.append(user_to_want_to_taste[u])
             writer.writerow(row)
+
+def calculate_place_count(post_ids_to_data):
+    print('Calculating place count...')
+    delta = datetime.timedelta(days=7)
+    start_date = datetime.datetime(2022, 1, 11).replace(tzinfo=pytz.UTC) # start on Tuesday
+    end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC) - delta
+    week_to_place_counts = {}
+    places_set = set()
+    while start_date < end_date:
+        posts = [p for p, d in post_ids_to_data.items() if start_date < d['timestamp'] < start_date + delta]
+        week_places_set = set([post_ids_to_data[p]['place'] for p in posts])
+        places_set = places_set.union(week_places_set)
+        week_to_place_counts[str(start_date.date())] = len(places_set)
+        start_date += delta
+    with open('metrics/place_counts.csv', 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(['week', 'place_count'])
+        for w in sorted(week_to_place_counts.keys()):
+            writer.writerow([w, week_to_place_counts[w]])
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -224,3 +243,4 @@ if __name__ == '__main__':
     calculate_core_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data)
     calculate_friend_graphs(user_ids_to_data)
     calculate_want_to_taste_counts(user_ids_to_data)
+    calculate_place_count(post_ids_to_data)
