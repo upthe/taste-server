@@ -34,6 +34,7 @@ def get_post_ids_to_data(db):
     for p in posts:
         post_ids_to_data[p.id] = {
             'user': p.get('user').id,
+            'place': p.get('place').id,
             'timestamp': p.get('timestamp').replace(tzinfo=pytz.UTC)
         }
     return post_ids_to_data
@@ -117,10 +118,11 @@ def calculate_top_line_metrics(user_ids_to_data, post_ids_to_data, session_ids_t
         writer.writerow(fields)
         writer.writerows(rows)
 
-def capture_core_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data):
+def calculate_core_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data):
     print('Calculating core spread metrics...')
     week_to_user_taste_spread = {}
     week_to_user_visit_spread = {}
+    week_to_place_spread = {}
     delta = datetime.timedelta(days=7)
     start_date = datetime.datetime(2022, 1, 11).replace(tzinfo=pytz.UTC) # start on Tuesday
     end_date = datetime.datetime.now().replace(tzinfo=pytz.UTC) - delta
@@ -165,24 +167,29 @@ def capture_core_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_
                 writer.writerow(row)
 
 # warning: results are dependent on time the function is run
-def capture_misc_spread_metrics(user_ids_to_data):
-    print('Calculating friend spread metrics...')
+def calculate_friend_graphs(user_ids_to_data):
+    print('Calculating friend graphs...')
     user_to_friends = {}
-    user_to_want_to_taste = {}
     for u, d in user_ids_to_data.items():
         friends = [user_ids_to_data[f.id]['handle'] for f in d['friends'] if f.id in user_ids_to_data]
-        want_to_tastes = d['wantToTaste']
         user_to_friends[u] = ' '.join(friends)
-        user_to_want_to_taste[u] = len(want_to_tastes)
-
-    with open(f'metrics/friends_spread.csv', 'w') as f:
+    with open(f'metrics/friend_graphs.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow(['users', 'friends'])
         for u in sorted(user_ids_to_data.keys()):
             row = [user_ids_to_data[u]['handle']]
             row.append(user_to_friends[u])
             writer.writerow(row)
-    with open(f'metrics/want_to_taste_spread.csv', 'w') as f:
+
+# warning: results are dependent on time the function is run
+def calculate_want_to_taste_counts(user_ids_to_data):
+    print('Calculating want to taste counts...')
+    user_to_want_to_taste = {}
+    for u, d in user_ids_to_data.items():
+        friends = [user_ids_to_data[f.id]['handle'] for f in d['friends'] if f.id in user_ids_to_data]
+        want_to_tastes = d['wantToTaste']
+        user_to_want_to_taste[u] = len(want_to_tastes)
+    with open(f'metrics/want_to_taste_counts.csv', 'w') as f:
         writer = csv.writer(f)
         writer.writerow(['users', 'want_to_taste_count'])
         for u in sorted(user_ids_to_data.keys()):
@@ -214,5 +221,6 @@ if __name__ == '__main__':
     session_ids_to_data = get_session_ids_to_data(db)
     calculate_raw_count_metrics(user_ids_to_data, post_ids_to_data, reply_ids_to_data, notification_ids_to_data)
     calculate_top_line_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data)
-    capture_core_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data)
-    capture_misc_spread_metrics(user_ids_to_data)
+    calculate_core_spread_metrics(user_ids_to_data, post_ids_to_data, session_ids_to_data)
+    calculate_friend_graphs(user_ids_to_data)
+    calculate_want_to_taste_counts(user_ids_to_data)
