@@ -43,8 +43,6 @@ exports.createNotificationsForPost = functions.firestore
       });
 
       const starRating = data.starRating;
-      const review = data.review;
-      const trimmedReview = review.trim();
 
       const placeRef = db.collection("places").doc(placeId);
       const placeQds = await placeRef.get();
@@ -120,7 +118,7 @@ exports.createNotificationsForPost = functions.firestore
           } else if (starRating == 5) {
             payload["type"] = "FriendTastedPlaceYouHaveNotTasted";
             payload["title"] = `${userData.firstName} said ${placeData.name} was excellent`;
-            payload["body"] = trimmedReview;
+            payload["body"] = "Check out their taste";
             payload["notificationIcon"] = userId;
             payload["notificationLink"] = postId;
             functions.logger.log("Creating notification with payload", payload);
@@ -579,16 +577,12 @@ exports.mentionUserInTaste = functions
       const userQds = await userRef.get();
       const userData = userQds.data();
 
-      const postRef = db.collection("posts").doc(postId);
-      const postQds = await postRef.get();
-      const postData = postQds.data();
-
       if (userId != mentionUserId) {
         const payload = {
           ownerId: mentionUserId,
           type: "UserMentionedYouInTaste",
           title: `${userData.firstName} mentioned you in their taste`,
-          body: postData.review,
+          body: "See what they said",
           notificationIcon: userId,
           notificationLink: postId,
           seen: false,
