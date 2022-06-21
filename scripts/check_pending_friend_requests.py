@@ -17,6 +17,7 @@ def get_user_ids_to_data(db):
             'lastName': user_dict.get('lastName'),
             'handle': user_dict.get('handle'),
             'sentFriendRequests': [f.id for f in user_dict.get('sentFriendRequests', [])],
+            'hasSignedIn': user_dict.get('hasSignedIn', True),
         }
     return user_ids_to_data
 
@@ -24,7 +25,8 @@ def process_user_ids_to_data(user_ids_to_data):
     for u, d in user_ids_to_data.items():
         if len(d['sentFriendRequests']) == 0:
             continue
-        print(f'{user_ids_to_data[u]["handle"]} has pending friend requests: {[user_ids_to_data[f]["handle"] for f in d["sentFriendRequests"]]}')
+        pending_friends = [user_ids_to_data[f]["handle"] for f in d["sentFriendRequests"] if user_ids_to_data[f]["hasSignedIn"]]
+        print(f'{user_ids_to_data[u]["handle"]} has pending friend requests: {pending_friends}')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
