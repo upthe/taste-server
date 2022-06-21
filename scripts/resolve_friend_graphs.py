@@ -36,6 +36,20 @@ def update_friends(db, friend_graph, complete_friend_graph):
                     'friends': firestore.ArrayUnion([friend_ref])
                 }, merge=True)
 
+def delete_orphaned_friend_requests(db):
+    users = db.collection('users').get()
+    for u in users:
+        user_dict = u.to_dict()
+        friends = user_dict.get('friends', [])
+        sent_friend_requests = user_dict.get('sentFriendRequests', [])
+        for f in sent_friend_requests:
+            if f not in friends:
+                continue
+            print(f'Removing pending friend request to {f.id} from {u.id}...')
+            db.collection('users').document(u.id).update({
+                'sentFriendRequests': firestore.ArrayRemove([f])
+            })
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--cert-path', type=str, required=True)
@@ -57,3 +71,4 @@ if __name__ == '__main__':
     friend_graph = get_friend_graph(db)
     complete_friend_graph = complete_friend_graph(friend_graph)
     update_friends(db, friend_graph, complete_friend_graph)
+    delete_orphaned_friend_requests(db)
