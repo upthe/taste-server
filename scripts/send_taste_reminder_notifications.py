@@ -120,6 +120,5 @@ if __name__ == '__main__':
             friend3_name = user_ids_to_data[rand_friends[2]]['firstName']
             payload['body'] = f'{friend1_name}, {friend2_name}, and {friend3_name} added tastes in the last week - add yours'
 
-        # TODO: create notifications
-        print(payload)
-        print()
+        print(f'Creating notification {payload}...')
+        db.collection('notifications').add(payload)
