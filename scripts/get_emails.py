@@ -3,8 +3,22 @@ import argparse
 import csv
 import firebase_admin
 import json
-from firebase_admin import credentials, firestore
+from firebase_admin import auth, credentials, firestore
 from os import environ
+
+def get_user_ids_to_data(db):
+    print('Getting authenticated users...')
+    user_ids_to_data = {}
+    for u in auth.list_users().iterate_all():
+        auth_user = auth.get_user(u.uid)
+        users = db.collection('users').where('phoneNumber', '==', u.phone_number).get()
+        if len(users) != 1:
+            continue
+        user = users[0]
+        user_ids_to_data[user.id] = {
+            'email': user.get('email'),
+        }
+    return user_ids_to_data
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -20,7 +34,7 @@ if __name__ == '__main__':
 
     db = firestore.client()
 
-    emails = [u.get('email') for u in db.collection('users').stream()]
-    emails = filter(lambda e: len(e) > 0, emails)
+    user_ids_to_data = get_user_ids_to_data(db)
+    emails = [d['email'] for _, d in user_ids_to_data.items() if len(d['email']) > 0]
     for e in emails:
         print(e)
