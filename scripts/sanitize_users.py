@@ -40,6 +40,15 @@ def delete_orphaned_friend_requests(db):
     users = db.collection('users').get()
     for u in users:
         user_dict = u.to_dict()
+
+        handle = user_dict.get('handle')
+        sanitized_handle = handle.replace(' ', '')
+        if sanitized_handle != handle:
+            print(f'Sanitizing handle for {u.id}...')
+            db.collection('users').document(u.id).update({
+                'handle': sanitized_handle
+            })
+
         friends = user_dict.get('friends', [])
         sent_friend_requests = user_dict.get('sentFriendRequests', [])
         for f in sent_friend_requests:
