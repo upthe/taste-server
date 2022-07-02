@@ -9,3 +9,6 @@ ${REPO_ROOT}/scripts/sanitize_users.py --cert-path ${CERT_PATH}
 echo "Running Emerald scripts..."
 ${REPO_ROOT}/scripts/emerald/create_emerald_events.py --cert-path ${CERT_PATH}
 ${REPO_ROOT}/scripts/emerald/calculate_emerald_creds.py --cert-path ${CERT_PATH}
+
+echo "Running set_posts_cuisines.py..."
+${REPO_ROOT}/scripts/set_posts_cuisines.py --cert-path ${CERT_PATH}
