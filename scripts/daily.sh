@@ -4,6 +4,7 @@ REPO_ROOT=$(git rev-parse --show-toplevel)
 CERT_PATH=${REPO_ROOT}/secret/taste-app-dbf1d-c271472aaf01.json
 
 source ${REPO_ROOT}/env/bin/activate
+export BYPASS_FIREBASE_PRODUCTION_PROMPT=1
 
 echo "Running sanitize_users.py..."
 ${REPO_ROOT}/scripts/sanitize_users.py --cert-path ${CERT_PATH}

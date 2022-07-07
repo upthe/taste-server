@@ -56,7 +56,7 @@ if __name__ == '__main__':
     credentials = credentials.Certificate(token_dict)
     firebase_admin.initialize_app(credentials)
 
-    if not 'FIRESTORE_EMULATOR_HOST' in environ:
+    if not 'FIRESTORE_EMULATOR_HOST' in environ and 'BYPASS_FIREBASE_PRODUCTION_PROMPT' not in environ:
         confirm = input('WARNING: connected to production, type "y" to continue: ')
         if confirm != "y":
             exit(0)
