@@ -72,3 +72,4 @@ restore/
 env/
 metrics/
 tmp/
+scripts/temp.py
