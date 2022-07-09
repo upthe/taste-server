@@ -82,8 +82,10 @@ def process_emerald_statuses(db, user_ids_to_data, current_emerald_user_ids, upd
     award_emerald_user_ids = list(set(updated_emerald_user_ids) - set(current_emerald_user_ids))
     print('Will remove Emerald from: ', [user_ids_to_data[u]['handle'] for u in remove_emerald_user_ids])
     print('Will assign Emerald to: ', [user_ids_to_data[u]['handle'] for u in award_emerald_user_ids])
+    if len(remove_emerald_user_ids) == 0 and len(award_emerald_user_ids) == 0:
+        return
     confirm = input('Type "y" to continue: ')
-    if confirm != "y":
+    if confirm != 'y':
         exit(0)
     for u in remove_emerald_user_ids:
         print(f'Removing Emerald status from {user_ids_to_data[u]["handle"]} and creating notifications...')
