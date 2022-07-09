@@ -35,3 +35,6 @@ exports.mentionUserInTaste = mentionUserInTaste.mentionUserInTaste;
 
 const mentionUserInReply = require("./mentionUserInReply");
 exports.mentionUserInReply = mentionUserInReply.mentionUserInReply;
+
+const fetchPlaces = require("./fetchPlaces");
+exports.fetchPlaces = fetchPlaces.fetchPlaces;
