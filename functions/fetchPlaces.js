@@ -16,7 +16,7 @@ const db = admin.firestore();
 //         "iconStyle": "PIN|DOT"
 //     ]
 // }
-// 
+//
 // Example query:
 // fetchPlaces({userId: "ZL9uRDZXog21sG87hWMw", centerLatitude: 40.7357375, centerLongitude: -73.997685, latitudeRange: 0.074443, longitudeRange: 0.012352})
 exports.fetchPlaces = functions
@@ -30,6 +30,37 @@ exports.fetchPlaces = functions
       const latitudeRange = data.latitudeRange;
       const longitudeRange = data.longitudeRange;
 
+      // Collect places user tasted, user wants to taste, friends tasted, friends want to taste
+      const userTastedIds = new Set();
+      const userWantToTasteIds = new Set();
+      const friendsTastedIds = new Set();
+      const friendsWantToTasteIds = new Set();
+
+      const userRef = db.collection("users").doc(userId);
+      const userQds = await userRef.get();
+      const userData = userQds.data();
+
+      userData.tasted.forEach((placeRef) => {
+        userTastedIds.add(placeRef.id);
+      });
+      userData.wantToTaste.forEach((placeRef) => {
+        userWantToTasteIds.add(placeRef.id);
+      });
+
+      for (const friendRef of userData.friends) {
+        const friendQds = await friendRef.get();
+        const friendData = friendQds.data();
+
+        friendData.tasted.forEach((placeRef) => {
+          friendsTastedIds.add(placeRef.id);
+        });
+        friendData.wantToTaste.forEach((placeRef) => {
+          friendsWantToTasteIds.add(placeRef.id);
+        });
+      }
+
+      const socialContextIds = new Set([...userTastedIds, ...userWantToTasteIds, ...friendsTastedIds, ...friendsWantToTasteIds]);
+
       // Calculate bounding box
       const minLatitude = centerLatitude - (latitudeRange / 2);
       const maxLatitude = centerLatitude + (latitudeRange / 2);
@@ -37,16 +68,19 @@ exports.fetchPlaces = functions
       const maxLongitude = centerLongitude + (longitudeRange / 2);
 
       // Fetch places in the bounding box
-      const placesFilterRef = db.collection("places")
+      const placesLocationFilterRef = db.collection("places")
           .where("longitude", ">", minLongitude)
           .where("longitude", "<", maxLongitude);
-      const placesFilterQds = await placesFilterRef.get();
-      const placesFilterData = placesFilterQds.docs.filter((placeDoc) => {
+      const placesLocationFilterQds = await placesLocationFilterRef.get();
+      const placesLocationFilterData = placesLocationFilterQds.docs.filter((placeDoc) => {
         const latitude = placeDoc.data()["latitude"];
         return minLatitude < latitude && latitude < maxLatitude;
       });
 
-      // TODO: Filter places based on state
+      // Filter for places with social context
+      const placesCustomFilterData = placesLocationFilterData.filter((placeDoc) => {
+        return socialContextIds.has(placeDoc.id);
+      });
 
       // TODO: Pre-fetch places with the most posts to determine icon style
 
@@ -54,7 +88,7 @@ exports.fetchPlaces = functions
       const placesReturnData = {
         "places": [],
       };
-      placesFilterData.forEach((placeDoc, i) => {
+      placesCustomFilterData.forEach((placeDoc, i) => {
         const placeData = placeDoc.data();
 
         const payload = {
@@ -66,9 +100,18 @@ exports.fetchPlaces = functions
         // TODO: Get social star rating of place
         payload["rating"] = 3.5;
 
-        // TODO: Get state of place
-        const tempStates = ["TASTED", "WANT_TO_TASTE", "FRIENDS_TASTED", "FRIENDS_WANT_TO_TASTE"];
-        payload["state"] = tempStates[i % 4];
+        // Get state of place
+        if (userTastedIds.has(placeDoc.id)) {
+          payload["state"] = "TASTED";
+        } else if (userWantToTasteIds.has(placeDoc.id)) {
+          payload["state"] = "WANT_TO_TASTE";
+        } else if (friendsTastedIds.has(placeDoc.id)) {
+          payload["state"] = "FRIENDS_TASTED";
+        } else if (friendsWantToTasteIds.has(placeDoc.id)) {
+          payload["state"] = "FRIENDS_WANT_TO_TASTE";
+        } else {
+          payload["state"] = "UNKNOWN";
+        }
 
         // TODO: Set icon style of place
         payload["iconStyle"] = i < 20 ? "PIN" : "DOT";
