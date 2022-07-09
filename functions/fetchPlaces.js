@@ -82,7 +82,22 @@ exports.fetchPlaces = functions
         return socialContextIds.has(placeDoc.id);
       });
 
-      // TODO: Pre-fetch places with the most posts to determine icon style
+      // Pre-fetch places with the most posts to determine icon style
+      const sortedPlacesWithMostPosts = [];
+      for (const placeDoc of placesCustomFilterData) {
+        const placeRef = db.collection("places").doc(placeDoc.id);
+        // This is the bottleneck of this function right now
+        const postsRef = db.collection("posts").where("place", "==", placeRef);
+        const postsQds = await postsRef.get();
+        sortedPlacesWithMostPosts.push({
+          "placeId": placeDoc.id,
+          "postsCount": postsQds.docs.length
+        })
+      }
+      sortedPlacesWithMostPosts.sort((a, b) => {
+        return b.postsCount - a.postsCount;
+      });
+      const top20PlacesWithMostPosts = sortedPlacesWithMostPosts.slice(0, 20).map((placePostDict) => placePostDict.placeId);
 
       // Populate dictionary to return
       const placesReturnData = {
@@ -113,8 +128,11 @@ exports.fetchPlaces = functions
           payload["state"] = "UNKNOWN";
         }
 
-        // TODO: Set icon style of place
-        payload["iconStyle"] = i < 20 ? "PIN" : "DOT";
+        if (top20PlacesWithMostPosts.includes(placeDoc.id)) {
+          payload["iconStyle"] = "PIN";
+        } else {
+          payload["iconStyle"] = "DOT";
+        }
 
         placesReturnData["places"].push(payload);
       });
