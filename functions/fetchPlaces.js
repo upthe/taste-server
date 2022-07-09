@@ -11,7 +11,6 @@ const db = admin.firestore();
 //         "id": "asdf1234",
 //         "name": "Dummy Restaurant",
 //         "cuisines": ["Pizza", "Italian"],
-//         "rating": 3.5,
 //         "state": "TASTED|WANT_TO_TASTE|FRIENDS_TASTED|FRIENDS_WANT_TO_TASTE",
 //         "iconStyle": "PIN|DOT"
 //     ]
@@ -102,9 +101,6 @@ exports.fetchPlaces = functions
           "name": placeData["name"],
           "cuisines": placeData["cuisines"] || [],
         };
-
-        // TODO: Get social star rating of place
-        payload["rating"] = 3.5;
 
         // Get state of place
         if (userTastedIds.has(placeDoc.id)) {
