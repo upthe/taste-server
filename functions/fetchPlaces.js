@@ -83,22 +83,12 @@ exports.fetchPlaces = functions
       });
 
       // Pre-fetch places with the most posts to determine icon style
-      const sortedPlacesWithMostPosts = [];
-      for (const placeDoc of placesCustomFilterData) {
-        const placeRef = db.collection("places").doc(placeDoc.id);
-        // This is the bottleneck of this function right now; we could calculate on a daily cadence
-        // the number of posts for each place and use that instead of fetching each time here
-        const postsRef = db.collection("posts").where("place", "==", placeRef);
-        const postsQds = await postsRef.get();
-        sortedPlacesWithMostPosts.push({
-          "placeId": placeDoc.id,
-          "postsCount": postsQds.docs.length,
-        });
-      }
-      sortedPlacesWithMostPosts.sort((a, b) => {
-        return b.postsCount - a.postsCount;
+      const sortedPlacesWithMostPosts = placesCustomFilterData.sort((placeDocA, placeDocB) => {
+        const placesCountA = placeDocA.data()["postsCount"] || 0;
+        const placesCountB = placeDocB.data()["postsCount"] || 0;
+        return placesCountB - placesCountA;
       });
-      const top20PlacesWithMostPosts = sortedPlacesWithMostPosts.slice(0, 20).map((placePostDict) => placePostDict.placeId);
+      const top20PlacesWithMostPosts = sortedPlacesWithMostPosts.slice(0, 20).map((placeDoc) => placeDoc.id);
 
       // Populate dictionary to return
       const placesReturnData = {
