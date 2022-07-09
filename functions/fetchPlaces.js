@@ -91,8 +91,8 @@ exports.fetchPlaces = functions
         const postsQds = await postsRef.get();
         sortedPlacesWithMostPosts.push({
           "placeId": placeDoc.id,
-          "postsCount": postsQds.docs.length
-        })
+          "postsCount": postsQds.docs.length,
+        });
       }
       sortedPlacesWithMostPosts.sort((a, b) => {
         return b.postsCount - a.postsCount;
