@@ -86,7 +86,8 @@ exports.fetchPlaces = functions
       const sortedPlacesWithMostPosts = [];
       for (const placeDoc of placesCustomFilterData) {
         const placeRef = db.collection("places").doc(placeDoc.id);
-        // This is the bottleneck of this function right now
+        // This is the bottleneck of this function right now; we could calculate on a daily cadence
+        // the number of posts for each place and use that instead of fetching each time here
         const postsRef = db.collection("posts").where("place", "==", placeRef);
         const postsQds = await postsRef.get();
         sortedPlacesWithMostPosts.push({
