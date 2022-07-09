@@ -15,3 +15,6 @@ ${REPO_ROOT}/scripts/emerald/calculate_emerald_creds.py --cert-path ${CERT_PATH}
 
 echo "Running set_posts_cuisines.py..."
 ${REPO_ROOT}/scripts/set_posts_cuisines.py --cert-path ${CERT_PATH}
+
+echo "Running set_places_posts.py..."
+${REPO_ROOT}/scripts/set_places_posts.py --cert-path ${CERT_PATH}
