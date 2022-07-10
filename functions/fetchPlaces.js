@@ -9,8 +9,7 @@ const db = admin.firestore();
 // {
 //     "places": [
 //         "id": "asdf1234",
-//         "name": "Dummy Restaurant",
-//         "cuisines": ["Pizza", "Italian"],
+//         "data": { <data> },
 //         "state": "TASTED|WANT_TO_TASTE|FRIENDS_TASTED|FRIENDS_WANT_TO_TASTE",
 //         "iconStyle": "PIN|DOT"
 //     ]
@@ -98,8 +97,7 @@ exports.fetchPlaces = functions
 
         const payload = {
           "id": placeDoc.id,
-          "name": placeData["name"],
-          "cuisines": placeData["cuisines"] || [],
+          "data": placeData,
         };
 
         // Get state of place
