@@ -38,3 +38,6 @@ exports.mentionUserInReply = mentionUserInReply.mentionUserInReply;
 
 const fetchPlaces = require("./fetchPlaces");
 exports.fetchPlaces = fetchPlaces.fetchPlaces;
+
+const getStarRatingForPlace = require("./getStarRatingForPlace");
+exports.getStarRatingForPlace = getStarRatingForPlace.getStarRatingForPlace;
