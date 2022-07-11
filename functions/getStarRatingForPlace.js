@@ -19,6 +19,7 @@ exports.getStarRatingForPlace = functions
       // Get data from query
       const placeId = data.placeId;
       const userId = data.userId;
+      functions.logger.log("Dumping placeId, uesrId", placeId, userId);
 
       // Get place reference and user data
       const placeRef = db.collection("places").doc(placeId);

@@ -27,6 +27,7 @@ exports.fetchPlaces = functions
       const centerLongitude = data.centerLongitude;
       const latitudeRange = data.latitudeRange;
       const longitudeRange = data.longitudeRange;
+      functions.logger.log("Dumping userId, centerLatitude, centerLongitude, latitudeRange, longitudeRange", userId, centerLatitude, centerLongitude, latitudeRange, longitudeRange);
 
       // Collect places user tasted, user wants to taste, friends tasted, friends want to taste
       const userTastedIds = new Set();
