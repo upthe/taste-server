@@ -49,18 +49,19 @@ exports.fetchPlaces = functions
         userWantToTasteIds.add(placeRef.id);
       });
 
-      // TODO: run this in parallel
-      for (const friendRef of userData.friends) {
-        const friendQds = await friendRef.get();
-        const friendData = friendQds.data();
-
-        friendData.tasted.forEach((placeRef) => {
-          friendsTastedIds.add(placeRef.id);
-        });
-        friendData.wantToTaste.forEach((placeRef) => {
-          friendsWantToTasteIds.add(placeRef.id);
-        });
-      }
+      const friendRefRequests = [];
+      userData.friends.forEach((friendRef) => {
+        friendRefRequests.push(friendRef.get().then((qds) => {
+          const data = qds.data();
+          data.tasted.forEach((placeRef) => {
+            friendsTastedIds.add(placeRef.id);
+          });
+          data.wantToTaste.forEach((placeRef) => {
+            friendsWantToTasteIds.add(placeRef.id);
+          });
+        }));
+      });
+      await Promise.all(friendRefRequests);
 
       const socialContextIds = new Set([...userTastedIds, ...userWantToTasteIds, ...friendsTastedIds, ...friendsWantToTasteIds]);
 
