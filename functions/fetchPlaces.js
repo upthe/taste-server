@@ -18,6 +18,9 @@ const db = admin.firestore();
 // Example query:
 // fetchPlaces({userId: "ZL9uRDZXog21sG87hWMw", centerLatitude: 40.7357375, centerLongitude: -73.997685, latitudeRange: 0.074443, longitudeRange: 0.012352})
 exports.fetchPlaces = functions
+    .runWith({
+      minInstances: 3,
+    })
     .https.onCall(async (data, context) => {
       functions.logger.log("Starting to process fetching places");
 
@@ -46,6 +49,7 @@ exports.fetchPlaces = functions
         userWantToTasteIds.add(placeRef.id);
       });
 
+      // TODO: run this in parallel
       for (const friendRef of userData.friends) {
         const friendQds = await friendRef.get();
         const friendData = friendQds.data();

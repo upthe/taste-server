@@ -13,13 +13,16 @@ const db = admin.firestore();
 // Example query:
 // getStarRatingForPlace({placeId: "a2ed1beb210ef0a28d8a16f36997495adb05e78a3e1ef67080390d2fea27c415", userId: "ZL9uRDZXog21sG87hWMw"})
 exports.getStarRatingForPlace = functions
+    .runWith({
+      minInstances: 3,
+    })
     .https.onCall(async (data, context) => {
       functions.logger.log("Starting to process getting star rating for place");
 
       // Get data from query
       const placeId = data.placeId;
       const userId = data.userId;
-      functions.logger.log("Dumping placeId, uesrId", placeId, userId);
+      functions.logger.log("Dumping placeId, userId", placeId, userId);
 
       // Get place reference and user data
       const placeRef = db.collection("places").doc(placeId);
