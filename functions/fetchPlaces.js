@@ -19,7 +19,7 @@ const db = admin.firestore();
 // fetchPlaces({userId: "ZL9uRDZXog21sG87hWMw", centerLatitude: 40.7357375, centerLongitude: -73.997685, latitudeRange: 0.074443, longitudeRange: 0.012352})
 exports.fetchPlaces = functions
     .runWith({
-      minInstances: 3,
+      minInstances: 1,
     })
     .https.onCall(async (data, context) => {
       functions.logger.log("Starting to process fetching places");
