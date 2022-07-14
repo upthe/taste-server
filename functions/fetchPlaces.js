@@ -84,12 +84,22 @@ exports.fetchPlaces = functions
       });
 
       // Filter for places with social context
-      const placesCustomFilterData = placesLocationFilterData.filter((placeDoc) => {
+      const placesSocialFilterData = placesLocationFilterData.filter((placeDoc) => {
         return socialContextIds.has(placeDoc.id);
       });
 
+      // Short-circuit if too many places in bounding box with social context
+      if (placesSocialFilterData.length > 40) {
+        return {
+          "places": [],
+          "error": `Too many places (${placesSocialFilterData.length}) with social context`,
+        }
+      } else {
+        functions.logger.log(`Will process ${placesSocialFilterData.length} places with social context`);
+      }
+
       // Pre-fetch places with the most posts to determine icon style
-      const sortedPlacesWithMostPosts = placesCustomFilterData.sort((placeDocA, placeDocB) => {
+      const sortedPlacesWithMostPosts = placesSocialFilterData.sort((placeDocA, placeDocB) => {
         const postsCountA = placeDocA.data()["postsCount"] || 0;
         const postsCountB = placeDocB.data()["postsCount"] || 0;
         return postsCountB - postsCountA;
@@ -128,15 +138,16 @@ exports.fetchPlaces = functions
           }));
         });
       });
-      functions.logger.log("Will process the following number of place posts requests:", placePostsRequests.length);
+      functions.logger.log(`Will process ${placePostsRequests.length} place posts requests`);
       await Promise.all(placePostsRequests);
-      functions.logger.log("Done processing number of place posts requests", placePostsRequests.length);
+      functions.logger.log(`Done processing ${placePostsRequests.length} place posts request`);
 
       // Populate dictionary to return
       const placesReturnData = {
         "places": [],
+        "error": null,
       };
-      placesCustomFilterData.forEach((placeDoc, i) => {
+      placesSocialFilterData.forEach((placeDoc, i) => {
         const placeData = placeDoc.data();
 
         const payload = {
