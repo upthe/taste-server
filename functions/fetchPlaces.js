@@ -93,7 +93,7 @@ exports.fetchPlaces = functions
         return {
           "places": [],
           "error": `Too many places (${placesSocialFilterData.length}) with social context`,
-        }
+        };
       } else {
         functions.logger.log(`Will process ${placesSocialFilterData.length} places with social context`);
       }
