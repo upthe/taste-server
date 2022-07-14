@@ -61,7 +61,9 @@ exports.fetchPlaces = functions
           });
         }));
       });
+      functions.logger.log("Will process the following number of friend requests:", friendRefRequests.length);
       await Promise.all(friendRefRequests);
+      functions.logger.log("Done processing number of friend requests", friendRefRequests.length);
 
       const socialContextIds = new Set([...userTastedIds, ...userWantToTasteIds, ...friendsTastedIds, ...friendsWantToTasteIds]);
 
@@ -88,11 +90,47 @@ exports.fetchPlaces = functions
 
       // Pre-fetch places with the most posts to determine icon style
       const sortedPlacesWithMostPosts = placesCustomFilterData.sort((placeDocA, placeDocB) => {
-        const placesCountA = placeDocA.data()["postsCount"] || 0;
-        const placesCountB = placeDocB.data()["postsCount"] || 0;
-        return placesCountB - placesCountA;
+        const postsCountA = placeDocA.data()["postsCount"] || 0;
+        const postsCountB = placeDocB.data()["postsCount"] || 0;
+        return postsCountB - postsCountA;
       });
-      const top20PlacesWithMostPosts = sortedPlacesWithMostPosts.slice(0, 20).map((placeDoc) => placeDoc.id);
+      const pinIconPlaceIds = sortedPlacesWithMostPosts.slice(0, 20).map((placeDoc) => placeDoc.id);
+
+      // Get star rating for pin icon places
+      const friendRefs = userData.friends;
+      friendRefs.push(userRef);
+
+      const chunkedFriendRefs = [];
+      const firebaseQueryLimit = 10;
+      let index = 0;
+      while (index < friendRefs.length) {
+        const limitIndex = Math.min(index + firebaseQueryLimit, friendRefs.length);
+        const chunk = friendRefs.slice(index, limitIndex);
+        chunkedFriendRefs.push(chunk);
+        index += firebaseQueryLimit;
+      }
+
+      const placeIdsToPostsQS = {};
+      const placePostsRequests = [];
+      pinIconPlaceIds.forEach((placeId) => {
+        const placeRef = db.collection("places").doc(placeId);
+        chunkedFriendRefs.forEach((chunk) => {
+          const postsRef = db.collection("posts")
+              .where("place", "==", placeRef)
+              .where("user", "in", chunk);
+          placePostsRequests.push(postsRef.get().then((qds) => {
+            const postsDocs = qds.docs;
+            if (placeId in placeIdsToPostsQS) {
+              placeIdsToPostsQS[placeId].push(...postsDocs);
+            } else {
+              placeIdsToPostsQS[placeId] = postsDocs;
+            }
+          }));
+        });
+      });
+      functions.logger.log("Will process the following number of place posts requests:", placePostsRequests.length);
+      await Promise.all(placePostsRequests);
+      functions.logger.log("Done processing number of place posts requests", placePostsRequests.length);
 
       // Populate dictionary to return
       const placesReturnData = {
@@ -104,6 +142,8 @@ exports.fetchPlaces = functions
         const payload = {
           "id": placeDoc.id,
           "data": placeData,
+          "iconStyle": "DOT", // Default
+          "starRating": 0.0, // Default
         };
 
         // Get state of place
@@ -119,10 +159,15 @@ exports.fetchPlaces = functions
           payload["state"] = "UNKNOWN";
         }
 
-        if (top20PlacesWithMostPosts.includes(placeDoc.id)) {
-          payload["iconStyle"] = "PIN";
-        } else {
-          payload["iconStyle"] = "DOT";
+        if (pinIconPlaceIds.includes(placeDoc.id)) {
+          const placePostQS = placeIdsToPostsQS[placeDoc.id];
+          const starRatings = placePostQS.map((post) => post.get("starRating"));
+          if (starRatings.length > 0) {
+            const averageStarRating = starRatings.reduce((prev, curr) => prev + curr) / starRatings.length;
+            functions.logger.log(averageStarRating);
+            payload["iconStyle"] = "PIN";
+            payload["starRating"] = averageStarRating;
+          }
         }
 
         placesReturnData["places"].push(payload);
