@@ -90,6 +90,7 @@ exports.fetchPlaces = functions
 
       // Short-circuit if too many places in bounding box with social context
       if (placesSocialFilterData.length > 40) {
+        functions.logger.log(`Returning because too many places (${placesSocialFilterData.length}) with social context`);
         return {
           "places": [],
           "error": `Too many places (${placesSocialFilterData.length}) with social context`,
