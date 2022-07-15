@@ -175,7 +175,6 @@ exports.fetchPlaces = functions
           const starRatings = placePostQS.map((post) => post.get("starRating"));
           if (starRatings.length > 0) {
             const averageStarRating = starRatings.reduce((prev, curr) => prev + curr) / starRatings.length;
-            functions.logger.log(averageStarRating);
             payload["iconStyle"] = "PIN";
             payload["starRating"] = averageStarRating;
           }
