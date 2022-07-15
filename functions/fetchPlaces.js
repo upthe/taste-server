@@ -33,11 +33,13 @@ exports.fetchPlaces = functions
       functions.logger.log("Dumping userId, centerLatitude, centerLongitude, latitudeRange, longitudeRange", userId, centerLatitude, centerLongitude, latitudeRange, longitudeRange);
 
       // Collect places user tasted, user wants to taste, friends tasted, friends want to taste
+      functions.logger.log("Will process user data");
       const userTastedIds = new Set();
       const userWantToTasteIds = new Set();
       const friendsTastedIds = new Set();
       const friendsWantToTasteIds = new Set();
 
+      // move this into parallel function
       const userRef = db.collection("users").doc(userId);
       const userQds = await userRef.get();
       const userData = userQds.data();
@@ -48,7 +50,9 @@ exports.fetchPlaces = functions
       userData.wantToTaste.forEach((placeRef) => {
         userWantToTasteIds.add(placeRef.id);
       });
+      functions.logger.log("Done processing user data");
 
+      functions.logger.log("Enumerating friend requests");
       const friendRefRequests = [];
       userData.friends.forEach((friendRef) => {
         friendRefRequests.push(friendRef.get().then((qds) => {
@@ -61,9 +65,9 @@ exports.fetchPlaces = functions
           });
         }));
       });
-      functions.logger.log("Will process the following number of friend requests:", friendRefRequests.length);
+      functions.logger.log(`Will process ${friendRefRequests.length} friend requests`);
       await Promise.all(friendRefRequests);
-      functions.logger.log("Done processing number of friend requests", friendRefRequests.length);
+      functions.logger.log(`Done processing ${friendRefRequests.length} number of friend requests`);
 
       const socialContextIds = new Set([...userTastedIds, ...userWantToTasteIds, ...friendsTastedIds, ...friendsWantToTasteIds]);
 
@@ -74,6 +78,7 @@ exports.fetchPlaces = functions
       const maxLongitude = centerLongitude + (longitudeRange / 2);
 
       // Fetch places in the bounding box
+      functions.logger.log("Filtering places based on bounding box");
       const placesLocationFilterRef = db.collection("places")
           .where("longitude", ">", minLongitude)
           .where("longitude", "<", maxLongitude);
@@ -82,13 +87,17 @@ exports.fetchPlaces = functions
         const latitude = placeDoc.data()["latitude"];
         return minLatitude < latitude && latitude < maxLatitude;
       });
+      functions.logger.log("Done filtering places based on bounding box");
 
       // Filter for places with social context
+      functions.logger.log("Filtering places with social context");
       const placesSocialFilterData = placesLocationFilterData.filter((placeDoc) => {
         return socialContextIds.has(placeDoc.id);
       });
+      functions.logger.log("Done filtering places with social context");
 
       // Short-circuit if too many places in bounding box with social context
+      functions.logger.log("Determining whether to short-circuit");
       if (placesSocialFilterData.length > 40) {
         functions.logger.log(`Returning because too many places (${placesSocialFilterData.length}) with social context`);
         return {
@@ -100,14 +109,17 @@ exports.fetchPlaces = functions
       }
 
       // Pre-fetch places with the most posts to determine icon style
+      functions.logger.log("Will sort places based on post count");
       const sortedPlacesWithMostPosts = placesSocialFilterData.sort((placeDocA, placeDocB) => {
         const postsCountA = placeDocA.data()["postsCount"] || 0;
         const postsCountB = placeDocB.data()["postsCount"] || 0;
         return postsCountB - postsCountA;
       });
       const pinIconPlaceIds = sortedPlacesWithMostPosts.slice(0, 20).map((placeDoc) => placeDoc.id);
+      functions.logger.log("Done sorting places based on post count");
 
       // Get star rating for pin icon places
+      functions.logger.log("Creating chunked friend list for posts queries");
       const friendRefs = userData.friends;
       friendRefs.push(userRef);
 
@@ -120,7 +132,9 @@ exports.fetchPlaces = functions
         chunkedFriendRefs.push(chunk);
         index += firebaseQueryLimit;
       }
+      functions.logger.log(`Done creating ${chunkedFriendRefs.length} chunked friend list for post queries`);
 
+      functions.logger.log("Enumerating place posts requests");
       const placeIdsToPostsQS = {};
       const placePostsRequests = [];
       pinIconPlaceIds.forEach((placeId) => {
@@ -144,6 +158,7 @@ exports.fetchPlaces = functions
       functions.logger.log(`Done processing ${placePostsRequests.length} place posts request`);
 
       // Populate dictionary to return
+      functions.logger.log("Will populate places return data");
       const placesReturnData = {
         "places": [],
         "error": null,
@@ -184,5 +199,6 @@ exports.fetchPlaces = functions
         placesReturnData["places"].push(payload);
       });
 
+      functions.logger.log("Done populating places return data, returning");
       return placesReturnData;
     });
