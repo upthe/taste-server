@@ -60,13 +60,13 @@ exports.calculateSimilaritiesPerPost = functions.firestore
         const score = (maxDiff - diff) / maxDiff;
 
         const similarityRef = db.collection("similarities")
-            .where(`user.${userRef.id}`, "==", true)
-            .where(`user.${friendRef.id}`, "==", true);
+            .where(`users.${userRef.id}`, "==", true)
+            .where(`users.${friendRef.id}`, "==", true);
         const similarityQds = await similarityRef.get();
         const similarityData = similarityQds.docs;
         if (similarityData.length == 1) {
           functions.logger.log("Updating similarity of users", score, userRef.id, friendRef.id);
-          similarityRef.update({
+          db.collection("similarities").doc(similarityData[0].id).update({
             "score": score,
           });
         } else if (similarityData.length == 0) {
