@@ -70,6 +70,7 @@ def upsert_similarity(db, friend_set, user_ids_to_data):
 
     print(f'Upserting similarity of {round(similarity, 2)} for {u1_handle}/{u2_handle}...')
     # TODO: upsert similarity
+    # see https://stackoverflow.com/questions/61405235/how-to-perform-compound-queries-with-logical-and-on-array-in-cloud-firestore
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
