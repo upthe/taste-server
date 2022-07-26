@@ -45,7 +45,19 @@ def get_post_ids_to_data(db):
         }
     return post_ids_to_data
 
-def upsert_similarity(db, friend_set, user_ids_to_data):
+def get_similarity_ids_to_data(db):
+    print('Getting similarities...')
+    similarity_ids_to_data = {}
+    similarities = db.collection('similarities').stream()
+    for s in similarities:
+        similarity_dict = s.to_dict()
+        similarity_ids_to_data[s.id] = {
+            'users': s.get('users'),
+            'score': s.get('score')
+        }
+    return similarity_ids_to_data
+
+def upsert_similarity(db, friend_set, user_ids_to_data, similarity_ids_to_data):
     friend_list = list(friend_set)
     u1 = friend_list[0]
     u2 = friend_list[1]
@@ -66,11 +78,30 @@ def upsert_similarity(db, friend_set, user_ids_to_data):
         u1_avg_star_rating = sum(u1_star_ratings) / len(u1_star_ratings)
         u2_avg_star_rating = sum(u2_star_ratings) / len(u2_star_ratings)
         diff += abs(u1_avg_star_rating - u2_avg_star_rating)
-    similarity = (max_diff - diff) / max_diff
+    score = (max_diff - diff) / max_diff
 
-    print(f'Upserting similarity of {round(similarity, 2)} for {u1_handle}/{u2_handle}...')
-    # TODO: upsert similarity
-    # see https://stackoverflow.com/questions/61405235/how-to-perform-compound-queries-with-logical-and-on-array-in-cloud-firestore
+    similarities = [s for s, d in similarity_ids_to_data.items() if u1 in d['users'].keys() and u2 in d['users'].keys()]
+    if len(similarities) == 1:
+        similarity_id = similarities[0]
+        similarity = similarity_ids_to_data[similarities[0]]
+        if similarity['score'] == score:
+            print(f'Skipping updating similarity of {round(score, 2)} for {u1_handle}/{u2_handle}, already the same...')
+            return
+        print(f'Updating similarity of {round(score, 2)} for {u1_handle}/{u2_handle}...')
+        db.collection('similarities').document(similarity_id).update({
+            'score': score
+        })
+    elif len(similarities) == 0:
+        print(f'Inserting similarity of {round(score, 2)} for {u1_handle}/{u2_handle}...')
+        db.collection('similarities').add({
+            'users': {
+                u1: True,
+                u2: True,
+            },
+            'score': score,
+        })
+    else:
+        print(f'WARNING: multiple similarities for {u1}/{u2}, omitting...')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -92,6 +123,7 @@ if __name__ == '__main__':
     db = firestore.client()
     user_ids_to_data = get_user_ids_to_data(db)
     post_ids_to_data = get_post_ids_to_data(db)
+    similarity_ids_to_data = get_similarity_ids_to_data(db)
     friend_sets = calculate_friend_sets(user_ids_to_data)
     for fs in friend_sets:
-        upsert_similarity(db, fs, user_ids_to_data)
+        upsert_similarity(db, fs, user_ids_to_data, similarity_ids_to_data)
