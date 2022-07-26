@@ -3,6 +3,9 @@
 const admin = require("firebase-admin");
 admin.initializeApp();
 
+const calculateSimilaritiesPerPost = require("./calculateSimilaritiesPerPost");
+exports.calculateSimilaritiesPerPost = calculateSimilaritiesPerPost.calculateSimilaritiesPerPost;
+
 const createNotificationsForPost = require("./createNotificationsForPost");
 exports.createNotificationsForPost = createNotificationsForPost.createNotificationsForPost;
 

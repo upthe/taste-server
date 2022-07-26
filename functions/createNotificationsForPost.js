@@ -11,7 +11,6 @@ exports.createNotificationsForPost = functions.firestore
     .onCreate(async (snap, context) => {
       functions.logger.log("Starting to process post to create notifications", context.params.postId);
       const data = snap.data();
-      functions.logger.log("Dumping post data", data);
 
       const starRatingDescriptors = [
         "terrible",
