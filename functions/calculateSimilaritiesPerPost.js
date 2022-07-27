@@ -27,7 +27,7 @@ exports.calculateSimilaritiesPerPost = functions.firestore
         const friendTastedIds = new Set(friendData.tasted.map((placeRef) => placeRef.id));
         const commonTastedIds = Array.from(new Set([...userTastedIds].filter((i) => friendTastedIds.has(i))));
 
-        if (commonTastedIds.length < 4) {
+        if (commonTastedIds.length < 5) {
           continue;
         }
 
@@ -41,7 +41,7 @@ exports.calculateSimilaritiesPerPost = functions.firestore
               .where("user", "==", userRef);
           const friendPostsRef = db.collection("posts")
               .where("place", "==", placeRef)
-              .where("user", "==", userRef);
+              .where("user", "==", friendRef);
 
           const userPostsQds = await userPostsRef.get();
           const friendPostsQds = await friendPostsRef.get();
