@@ -44,3 +44,6 @@ exports.fetchPlaces = fetchPlaces.fetchPlaces;
 
 const getStarRatingForPlace = require("./getStarRatingForPlace");
 exports.getStarRatingForPlace = getStarRatingForPlace.getStarRatingForPlace;
+
+const fetchPlaceFinderRecommendations = require("./fetchPlaceFinderRecommendations");
+exports.fetchPlaceFinderRecommendations = fetchPlaceFinderRecommendations.fetchPlaceFinderRecommendations;
