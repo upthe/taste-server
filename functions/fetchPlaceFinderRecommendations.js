@@ -1,4 +1,4 @@
-/* eslint-disable max-len */
+/* eslint-disable max-len, require-jsdoc */
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
@@ -16,13 +16,13 @@ const db = admin.firestore();
 //   cuisines: ["Pizza"]
 // })
 // fetchPlaceFinderRecommendations({userId: "ZL9uRDZXog21sG87hWMw", friendIds: ["mvWOoxW4dOltwNjpkUvS"], centerLatitude: 40.7357375, centerLongitude: -73.997685, latitudeRange: 0.074443, longitudeRange: 0.012352, cuisines: ["Pizza"]})
-// 
+//
 // Example response:
 // { "recommendationsId": "" }
-// 
+//
 // Example recommendation:
 // {
-//   ownerId: "ZL9uRDZXog21sG87hWMw",
+//   userId: "ZL9uRDZXog21sG87hWMw",
 //   friendIds: [todo],
 //   placeRecommendations: [
 //     {
@@ -70,54 +70,132 @@ exports.fetchPlaceFinderRecommendations = functions
       const group = friendIds.concat([userId]);
       const userIdToWantToTaste = group.reduce((obj, userId) => {
         obj[userId] = [];
-        return obj
+        return obj;
       }, {});
       const userIdToTasted = group.reduce((obj, userId) => {
         obj[userId] = [];
-        return obj
+        return obj;
       }, {});
       for (const userId of group) {
         const userRef = db.collection("users").doc(userId);
         const userQds = await userRef.get();
         const userData = userQds.data();
 
-        for (placeRef of userData.wantToTaste) {
+        userData.wantToTaste.forEach((placeRef) => {
           userIdToWantToTaste[userId].push(placeRef.id);
-        }
-        for (placeRef of userData.tasted) {
+        });
+        userData.tasted.forEach((placeRef) => {
           userIdToTasted[userId].push(placeRef.id);
-        }
+        });
       }
 
+      let recommendedPlaces = [];
+      let resultPlaces = [];
       const allPlaces = placesLocationFilterData.map((placeSnapshot) => {
         const data = placeSnapshot.data();
         const wantToTasteUserIds = [];
         const tastedUserIds = [];
-        for (const userId of group) {
+        group.forEach((userId) => {
           if (userIdToWantToTaste[userId].includes(placeSnapshot.id)) {
             wantToTasteUserIds.push(userId);
           }
           if (userIdToTasted[userId].includes(placeSnapshot.id)) {
             tastedUserIds.push(userId);
           }
-        }
+        });
         return {
-            "name": data["name"],
-            "wantToTasteUserIds": wantToTasteUserIds,
-            "tastedUserIds": tastedUserIds,
-            "postsCount": data["postsCount"],
-        }
+          "id": placeSnapshot.id,
+          "name": data["name"],
+          "cuisines": data["cuisines"],
+          "postsCount": data["postsCount"],
+          "wantToTasteUserIds": wantToTasteUserIds,
+          "tastedUserIds": tastedUserIds,
+        };
       });
 
-      // Filter for cuisines, want to taste, not tasted
+      function sortPlaces(placeA, placeB) {
+        const diffWantToTasteCount = placeB.wantToTasteUserIds.length - placeA.wantToTasteUserIds.length;
+        const diffTastedCount = placeA.tastedUserIds.length - placeB.tastedUserIds.length;
+        const postsCountDiff = placeB.postsCount - placeA.postsCount;
+        return diffWantToTasteCount || postsCountDiff || diffTastedCount;
+      }
 
-      // Filter for want to taste, not tasted
+      async function createRecommendation(recommendedPlaces) {
+        recommendedPlaces = recommendedPlaces.slice(0, 3);
+        const recommendation = await db.collection("recommendations").add({
+          userId: db.collection("users").doc(userId),
+          friendIds: friendIds.map((friendId) => db.collection("users").doc(friendId)),
+          recommendedPlaces: recommendedPlaces.map((place) => {
+            return {
+              "place": db.collection("places").doc(place.id),
+              "cuisines": place.cuisines,
+              "wantToTasteUserIds": place.wantToTasteUserIds.map((userId) => db.collection("users").doc(userId)),
+              "tastedUserIds": place.tastedUserIds.map((userId) => db.collection("users").doc(userId)),
+            };
+          }),
+        });
+        return recommendation;
+      }
 
-      // Filter for want to taste
+      functions.logger.log("Filtering for cuisines, not tasted");
+      resultPlaces = allPlaces
+          .filter((place) => {
+            for (const cuisine of place.cuisines) {
+              if (cuisines.includes(cuisine)) {
+                return true;
+              }
+            }
+            return false;
+          })
+          .filter((place) => place.tastedUserIds.length == 0)
+          .sort(sortPlaces);
+      resultPlaces.forEach((place) => {
+        if (!recommendedPlaces.includes(place)) {
+          recommendedPlaces.push(place);
+        }
+      });
+      if (recommendedPlaces.length >= 3) {
+        recommendedPlaces = recommendedPlaces.slice(0, 3);
+        const recommendation = await createRecommendation(recommendedPlaces);
+        return {
+          recommendationId: recommendation.id,
+        };
+      }
 
-      // Filter for not tasted
+      functions.logger.log("Filtering for not tasted");
+      resultPlaces = allPlaces
+          .filter((place) => place.tastedUserIds.length == 0)
+          .sort(sortPlaces);
+      resultPlaces.forEach((place) => {
+        if (!recommendedPlaces.includes(place)) {
+          recommendedPlaces.push(place);
+        }
+      });
+      if (recommendedPlaces.length >= 3) {
+        recommendedPlaces = recommendedPlaces.slice(0, 3);
+        const recommendation = await createRecommendation(recommendedPlaces);
+        return {
+          recommendationId: recommendation.id,
+        };
+      }
 
-      // Filter for nothing
+      functions.logger.log("Filtering for nothing");
+      resultPlaces = allPlaces.sort(sortPlaces);
+      resultPlaces.forEach((place) => {
+        if (!recommendedPlaces.includes(place)) {
+          recommendedPlaces.push(place);
+        }
+      });
+      if (recommendedPlaces.length >= 3) {
+        recommendedPlaces = recommendedPlaces.slice(0, 3);
+        const recommendation = await createRecommendation(recommendedPlaces);
+        return {
+          recommendationId: recommendation.id,
+        };
+      }
 
-      return {};
+      const recommendation = await createRecommendation(recommendedPlaces);
+      return {
+        recommendationId: recommendation.id,
+      };
     });
