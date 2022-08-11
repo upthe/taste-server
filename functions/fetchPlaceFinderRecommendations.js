@@ -95,7 +95,6 @@ exports.fetchPlaceFinderRecommendations = functions
         const tastedUserIds = [];
         for (const userId of group) {
           if (userIdToWantToTaste[userId].includes(placeSnapshot.id)) {
-            functions.logger.log("pushing");
             wantToTasteUserIds.push(userId);
           }
           if (userIdToTasted[userId].includes(placeSnapshot.id)) {
