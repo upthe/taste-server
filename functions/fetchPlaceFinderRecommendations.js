@@ -139,6 +139,7 @@ exports.fetchPlaceFinderRecommendations = functions
               "tastedUsers": place.tastedUserIds.map((userId) => db.collection("users").doc(userId)),
             };
           }),
+          timestamp: admin.firestore.Timestamp.now(),
         });
         return recommendation;
       }
