@@ -103,11 +103,17 @@ exports.fetchPlaceFinderRecommendations = functions
             tastedUserIds.push(userId);
           }
         });
+
+        let postsCount = 0;
+        if ("postsCount" in data) {
+          postsCount = data["postsCount"];
+        }
+
         return {
           "id": placeSnapshot.id,
           "name": data["name"],
           "cuisines": data["cuisines"],
-          "postsCount": data["postsCount"],
+          "postsCount": postsCount,
           "wantToTasteUserIds": wantToTasteUserIds,
           "tastedUserIds": tastedUserIds,
         };
