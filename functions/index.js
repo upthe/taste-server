@@ -47,3 +47,6 @@ exports.getStarRatingForPlace = getStarRatingForPlace.getStarRatingForPlace;
 
 const fetchPlaceFinderRecommendations = require("./fetchPlaceFinderRecommendations");
 exports.fetchPlaceFinderRecommendations = fetchPlaceFinderRecommendations.fetchPlaceFinderRecommendations;
+
+const sendGroupRecommendations = require("./sendGroupRecommendations");
+exports.sendGroupRecommendations = sendGroupRecommendations.sendGroupRecommendations;
