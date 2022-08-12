@@ -129,14 +129,14 @@ exports.fetchPlaceFinderRecommendations = functions
       async function createRecommendation(recommendedPlaces) {
         recommendedPlaces = recommendedPlaces.slice(0, 3);
         const recommendation = await db.collection("recommendations").add({
-          userId: db.collection("users").doc(userId),
-          friendIds: friendIds.map((friendId) => db.collection("users").doc(friendId)),
+          user: db.collection("users").doc(userId),
+          friends: friendIds.map((friendId) => db.collection("users").doc(friendId)),
           recommendedPlaces: recommendedPlaces.map((place) => {
             return {
               "place": db.collection("places").doc(place.id),
               "cuisines": place.cuisines,
-              "wantToTasteUserIds": place.wantToTasteUserIds.map((userId) => db.collection("users").doc(userId)),
-              "tastedUserIds": place.tastedUserIds.map((userId) => db.collection("users").doc(userId)),
+              "wantToTasteUsers": place.wantToTasteUserIds.map((userId) => db.collection("users").doc(userId)),
+              "tastedUsers": place.tastedUserIds.map((userId) => db.collection("users").doc(userId)),
             };
           }),
         });
