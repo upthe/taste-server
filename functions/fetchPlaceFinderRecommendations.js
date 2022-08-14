@@ -109,10 +109,15 @@ exports.fetchPlaceFinderRecommendations = functions
           postsCount = data["postsCount"];
         }
 
+        let cuisines = [];
+        if ("cuisines" in data) {
+          cuisines = data["cuisines"];
+        }
+
         return {
           "id": placeSnapshot.id,
           "name": data["name"],
-          "cuisines": data["cuisines"],
+          "cuisines": cuisines,
           "postsCount": postsCount,
           "wantToTasteUserIds": wantToTasteUserIds,
           "tastedUserIds": tastedUserIds,
