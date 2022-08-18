@@ -137,7 +137,7 @@ exports.fetchPlaceFinderRecommendations = functions
         const recommendation = await db.collection("recommendations").add({
           user: db.collection("users").doc(userId),
           friends: friendIds.map((friendId) => db.collection("users").doc(friendId)),
-          cusines: cuisines,
+          cuisines: cuisines,
           location: {
             centerLatitude: centerLatitude,
             centerLongitude: centerLongitude,
